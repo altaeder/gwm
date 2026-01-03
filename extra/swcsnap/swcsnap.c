@@ -6,7 +6,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <wayland-client.h>
-#include "swc/protocol/swc_snap-client-protocol.h"
+#include "swc_snap-client-protocol.h"
 
 static struct swc_snap *snap_manager = NULL;
 
@@ -76,3 +76,4 @@ main(int argc, char *argv[])
 
 	return 0;
 }
+
