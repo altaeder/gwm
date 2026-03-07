@@ -24,8 +24,6 @@
 #include "config.h"
 #include "nein_cursor.h"
 
-#include "protocol/hevel-server-protocol.h"
-
 struct window {
 	struct swc_window *swc;
 	struct wl_list link;
@@ -51,9 +49,6 @@ static const int timerms = 16;
 static const int scrollpx = 64;
 static const int scrollease = 4;
 static const int scrollcap = 64;
-
-static int scrollpos = 0;
-static struct wl_list scrollpos_resources;
 
 static bool debugscroll = false;
 static struct {
@@ -110,42 +105,7 @@ static void scroll_stop(void);
 static int zoom_tick(void *data);
 static bool is_visible(struct swc_window *w, struct screen *screen);
 
-static void
-remove_resource(struct wl_resource *resource)
-{
-	wl_list_remove(wl_resource_get_link(resource));
-}
 
-void 
-bind_scrollpos(struct wl_client *client, void *data, uint32_t version, uint32_t id)
-{
-	(void)data;
-	struct wl_resource *resource;
-
-	if (version >= 1)
-		version = 1;
-
-	resource = wl_resource_create(client, &hevel_scroll_interface, version, id);
-
-	if(!resource) {
-		wl_client_post_no_memory(client);
-		return;
-	}
-
-	wl_resource_set_implementation(resource, NULL, NULL, remove_resource);
-	wl_list_insert(&scrollpos_resources, wl_resource_get_link(resource));
-
-	hevel_scroll_send_get_pos(resource, scrollpos);
-}
-
-void
-send_scrollpos(void)
-{
-	struct wl_resource *resource;
-	
-	wl_resource_for_each(resource, &scrollpos_resources)
-		hevel_scroll_send_get_pos(resource, scrollpos);
-}
 
 static void
 focus_window(struct swc_window *swc, const char *reason)
@@ -613,9 +573,6 @@ scroll_tick(void *data)
 		fprintf(stderr, "[scroll] tick rem=%d step=%d rem_x=%d step_x=%d last=%p\n",
 		        rem, step, rem_x, step_x, (void *)hevel.chord.scroll_last);
 	}
-
-	scrollpos += step;
-	send_scrollpos();
 
 	wl_list_for_each_safe(w, tmp, &hevel.windows, link) {
 		if (!w->swc) {
@@ -1414,7 +1371,6 @@ main(void)
 
 	wl_list_init(&hevel.windows);
 	wl_list_init(&hevel.screens);
-	wl_list_init(&scrollpos_resources);
 	
 	hevel.current_screen = NULL;
 	hevel.display = wl_display_create();
@@ -1431,8 +1387,6 @@ main(void)
 		return 1;
 	}
 	
-	wl_global_create(hevel.display, &hevel_scroll_interface, 1, NULL, bind_scrollpos);
-
 	maybe_enable_nein_cursor_theme();
 	
 	swc_add_binding(SWC_BINDING_KEY, SWC_MOD_LOGO | SWC_MOD_SHIFT,
