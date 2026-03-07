@@ -19,11 +19,6 @@ CFLAGS += `pkg-config --cflags swc wayland-server libinput pixman-1 xkbcommon li
 LDFLAGS = -L$(PREFIX)/lib -Wl,-rpath,$(PREFIX)/lib
 LDLIBS += `pkg-config --libs swc wayland-server libinput pixman-1 xkbcommon libdrm libudev xcb xcb-composite xcb-ewmh xcb-icccm wld`
 
-SNAP_CLIENT_CFLAGS = -O2 -std=c99 -Wall -Wextra
-SNAP_CLIENT_CFLAGS += `pkg-config --cflags swc wayland-client libinput pixman-1 xkbcommon libdrm wld` 
-SNAP_CLIENT_LDLIBS = `pkg-config --libs swc wayland-client libinput pixman-1 xkbcommon libdrm libudev xcb xcb-composite xcb-ewmh xcb-icccm wld`
-SNAP_C = extra/swcsnap/swcsnap.c
-
 HBAR_C = extra/hbar/hbar.c
 HBAR_O = extra/hbar/hbar.o
 HBAR_CFLAGS = -O2 -std=c99 -Wall -Wextra -Wno-unused-parameter
@@ -31,19 +26,13 @@ HBAR_CFLAGS += `pkg-config --cflags swc wayland-client libinput pixman-1 xkbcomm
 HBAR_CFLAGS += -I$(PROTO_DIR)
 HBAR_LDLIBS = `pkg-config --libs swc wayland-client libinput pixman-1 xkbcommon libdrm libudev xcb xcb-composite xcb-ewmh xcb-icccm wld`
 
-all: hevel swcsnap hbar
+all: hevel hbar
 
 hevel: hevel.o $(PROTO_HEVEL_SERVER_O)
 	$(CC) $(LDFLAGS) -o hevel hevel.o $(PROTO_HEVEL_SERVER_O) $(LDLIBS)
 
 hevel.o: hevel.c $(PROTO_HEVEL_SERVER_H)
 	$(CC) $(CFLAGS) -c hevel.c
-
-swcsnap: swcsnap.o 
-	$(CC) $(LDFLAGS) -o swcsnap swcsnap.o $(SNAP_CLIENT_LDLIBS)
-
-swcsnap.o: $(SNAP_C)
-	$(CC) $(SNAP_CLIENT_CFLAGS) -c $(SNAP_C)
 
 $(PROTO_HEVEL_SERVER_O): $(PROTO_HEVEL_SERVER_C) $(PROTO_HEVEL_SERVER_H)
 	$(CC) $(CFLAGS) -c $(PROTO_HEVEL_SERVER_C) -o $(PROTO_HEVEL_SERVER_O)
@@ -66,12 +55,10 @@ $(HBAR_O): $(PROTO_HEVEL_CLIENT_O)
 clean:
 	rm -f hevel hevel.o
 	rm -f $(PROTO_HEVEL_SERVER_H) $(PROTO_HEVEL_CLIENT_H) $(PROTO_HEVEL_SERVER_C) $(PROTO_HEVEL_CLIENT_C) $(PROTO_HEVEL_SERVER_O) $(PROTO_HEVEL_CLIENT_O)
-	rm -f swcsnap swcsnap.o
 	rm -f hbar extra/hbar/hbar.o
 
 install: hevel
 	install -D -m 755 hevel $(DESTDIR)$(BINDIR)/hevel
-	install -D -m 755 swcsnap $(DESTDIR)$(BINDIR)/swcsnap
 	install -D -m 755 hbar $(DESTDIR)$(BINDIR)/hbar
 	
 .PHONY: clean install FORCE
