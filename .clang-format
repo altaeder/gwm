@@ -1,0 +1,11 @@
+AlwaysBreakAfterReturnType: All
+BreakBeforeBraces: Linux
+ColumnLimit: 80
+ExperimentalAutoDetectBinPacking: true
+FixNamespaceComments: true
+PointerAlignment: Right
+AlignEscapedNewlines: Right
+InsertBraces: false
+AllowShortIfStatementsOnASingleLine: true
+AllowShortLoopsOnASingleLine: true
+MaxEmptyLinesToKeep: 1
