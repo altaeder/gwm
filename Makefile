@@ -13,8 +13,8 @@ all: hevel
 hevel: hevel.o
 	$(CC) $(LDFLAGS) -o hevel hevel.o $(LDLIBS)
 
-hevel.o: hevel.c 
-	$(CC) $(CFLAGS) -c hevel.c
+hevel.o: src/hevel.c 
+	$(CC) $(CFLAGS) -c src/hevel.c
 
 clean:
 	rm -f hevel hevel.o

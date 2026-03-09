@@ -2,3 +2,4 @@ hevel
 hevel.o
 *.o
 *.a
+*.swp

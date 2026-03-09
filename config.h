@@ -1,3 +1,6 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
 static const uint32_t background_color = 0xff777777;
 
 static const uint32_t outer_border_color_inactive = 0xffffffea;
@@ -45,17 +48,17 @@ static const int32_t move_scroll_edge_threshold = 80;
 static const int32_t move_scroll_speed = 16;
 static const float move_ease_factor = 0.30f;
 
+static const int timerms = 16;
+
+static const int scrollpx = 64;
+static const int scrollease = 4;
+static const int scrollcap = 64;
+
 /* scroll chord mode:
  * - true  : drag mouse to scroll in any direction
  * - false : use scroll wheel for vertical scrolling only
  */
 static const bool scroll_drag_mode = true;
-
-/* whether or not to center the window.
- * in drag mode, it centers on both axis
- * otherwise on the vertical axis
- */
-static bool focus_center = true;
 
 /*
  * enable zoom feature:
@@ -64,6 +67,13 @@ static bool focus_center = true;
  */
 static const bool enable_zoom = true;
 
+/*
+ * enable zoom feature:
+ * - when enabled: scroll wheel controls zoom when in drag scroll mode
+ * broken for multiple monitors
+ */
+#define FOCUS_CENTER true
+
 /* customizable 2-1 chord
  * avaliable options:
  * - STICKY: make window not move when scroll
@@ -71,3 +81,5 @@ static const bool enable_zoom = true;
  * - JUMP: switch focus to the closest window
  */
 #define JUMP
+
+#endif
