@@ -1,6 +1,11 @@
 #ifndef WINDOW_H
 #define WINDOW_H
 
+#include <stdbool.h>
+#include <swc.h>
+
+struct screen;
+
 void
 focus_window(struct swc_window *swc, const char *reason);
 bool

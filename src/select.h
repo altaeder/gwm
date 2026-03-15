@@ -1,6 +1,8 @@
 #ifndef SELECT_H
 #define SELECT_H
 
+#include <swc.h>
+
 void
 stop_select(void);
 int

@@ -26,6 +26,12 @@
 #include "../config.h"
 #include "nein_cursor.h"
 
+#include "input.h"
+#include "scroll.h"
+#include "select.h"
+#include "window.h"
+#include "zoom.h"
+
 typedef enum {
   MODE_NONE,
   MODE_KILL,
@@ -112,6 +118,8 @@ struct sel_state {
   struct wl_event_source *timer;
 };
 extern struct sel_state sel;
+
+extern bool focus_center;
 
 extern const int timerms;
 

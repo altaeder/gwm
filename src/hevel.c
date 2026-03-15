@@ -8,12 +8,6 @@ struct zoom_state zoom = {0};
 struct sel_state sel = {0};
 bool focus_center = FOCUS_CENTER;
 
-#include "input.c"
-#include "scroll.c"
-#include "select.c"
-#include "window.c"
-#include "zoom.c"
-
 static void
 maybe_enable_nein_cursor_theme(void)
 {
