@@ -9,15 +9,21 @@ PKGS = swc wayland-server libinput pixman-1 xkbcommon libdrm wld libudev xcb xcb
 CFLAGS += `pkg-config --cflags $(PKGS)`
 LDLIBS += `pkg-config --libs $(PKGS)`
 
-SRC = src/hevel.c src/input.c src/scroll.c src/select.c src/window.c src/zoom.c
+SRC = config.h src/hevel.c src/input.c src/scroll.c src/select.c src/window.c src/zoom.c
 
 all: hevel
+
+config.h:
+	cp config.def.h $@
 
 hevel: $(SRC)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o hevel $(SRC) $(LDLIBS)
 
 clean:
 	rm -f hevel *.o
+
+confclean:
+	rm -f hevel *.o config.h
 
 install: hevel
 	install -D -m 755 hevel $(DESTDIR)$(BINDIR)/hevel

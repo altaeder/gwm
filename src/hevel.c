@@ -6,7 +6,11 @@ struct chord_state chord = {0};
 struct scroll_state scroll = {0};
 struct zoom_state zoom = {0};
 struct sel_state sel = {0};
-bool focus_center = FOCUS_CENTER;
+
+/* TODO: clear this up
+ * it does this because we modify this value from config
+ * so it needs to be copied over, too lazy to change the name now */
+bool focus_center = center_focus;
 
 static void
 maybe_enable_nein_cursor_theme(void)

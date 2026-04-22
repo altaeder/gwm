@@ -94,19 +94,343 @@ axis(void *data, uint32_t time, uint32_t axis, int32_t value120)
   if (scroll.timer) wl_event_source_timer_update(scroll.timer, 1);
 }
 
+static void
+handle_kill(uint32_t b, bool pressed, bool was_right, bool acme)
+{
+  if (b != BTN_LEFT) return;
+
+  if (pressed && was_right && !input.active && !acme) {
+    click_cancel();
+    stop_select();
+    input.active = true;
+    chord.mode = MODE_KILL;
+    update_mode_cursor();
+    return;
+  }
+
+  if (!pressed && chord.mode == MODE_KILL) {
+    int32_t x, y;
+    if (cursor_position(&x, &y)) {
+      struct swc_window *target = swc_window_at(x, y);
+      if (target) swc_window_close(target);
+    }
+    chord.mode = MODE_NONE;
+    update_mode_cursor();
+    if (!chord.left && !chord.middle && !chord.right) input.active = false;
+  }
+}
+
+static void
+handle_scroll(uint32_t b, bool pressed, bool was_right)
+{
+  if (b != BTN_MIDDLE) return;
+
+  if (pressed && was_right && !input.active) {
+    click_cancel();
+    stop_select();
+    input.active = true;
+    chord.mode = MODE_SCROLL;
+    scroll.cursor_dir = -1;
+    update_mode_cursor();
+    scroll_stop();
+
+    if (scroll_drag_mode) {
+      int32_t x, y;
+      if (cursor_position(&x, &y)) {
+        input.scroll_drag_last_x = x;
+        input.scroll_drag_last_y = y;
+      }
+      if (!input.scroll_drag_timer)
+        input.scroll_drag_timer =
+            wl_event_loop_add_timer(compositor.evloop, scroll_drag_tick, NULL);
+      if (input.scroll_drag_timer)
+        wl_event_source_timer_update(input.scroll_drag_timer, timerms);
+    }
+    return;
+  }
+
+  if (!pressed && chord.mode == MODE_SCROLL) return; /* swallow release */
+}
+
+static void
+handle_move(uint32_t b, bool pressed, uint32_t time, uint32_t state,
+            bool was_left)
+{
+  if (b == BTN_MIDDLE && !pressed && was_left && !input.active &&
+      !sel.selecting) {
+    click_cancel();
+    stop_select();
+    input.active = true;
+    chord.mode = MODE_MOVE;
+    update_mode_cursor();
+
+    if (compositor.focused) {
+      int32_t x, y;
+      struct swc_rectangle geom;
+      if (cursor_position(&x, &y) &&
+          swc_window_get_geometry(compositor.focused, &geom)) {
+        input.move_start_win_x = geom.x;
+        input.move_start_win_y = geom.y;
+        input.move_start_cursor_x = x;
+        input.move_start_cursor_y = y;
+      }
+    }
+
+    if (!input.move_scroll_timer)
+      input.move_scroll_timer =
+          wl_event_loop_add_timer(compositor.evloop, move_scroll_tick, NULL);
+    if (input.move_scroll_timer)
+      wl_event_source_timer_update(input.move_scroll_timer, timerms);
+
+    /* forward the release so clients don't see stuck */
+    swc_pointer_send_button(time, b, state);
+    return;
+  }
+
+  if (b == BTN_LEFT && !pressed && chord.mode == MODE_MOVE) {
+    chord.mode = MODE_NONE;
+    update_mode_cursor();
+
+    if (input.move_scroll_timer) {
+      wl_event_source_remove(input.move_scroll_timer);
+      input.move_scroll_timer = NULL;
+    }
+
+    if (!chord.left && !chord.middle && !chord.right) input.active = false;
+
+    /* forward the release so clients don't see stuck */
+    swc_pointer_send_button(time, b, state);
+  }
+}
+
+static void
+handle_resize(uint32_t b, bool pressed, uint32_t time, uint32_t state,
+              bool was_right)
+{
+  if (b == BTN_MIDDLE && !pressed && was_right && !input.active &&
+      !sel.selecting) {
+    click_cancel();
+    stop_select();
+    input.active = true;
+    chord.mode = MODE_RESIZE;
+    update_mode_cursor();
+
+    if (compositor.focused) /* bottom right */
+      swc_window_begin_resize(compositor.focused,
+                              SWC_WINDOW_EDGE_RIGHT | SWC_WINDOW_EDGE_BOTTOM);
+
+    /* forward the middle release so clients don't see it stuck */
+    swc_pointer_send_button(time, b, state);
+    return;
+  }
+
+  if (b == BTN_RIGHT && !pressed && chord.mode == MODE_RESIZE) {
+    chord.mode = MODE_NONE;
+    update_mode_cursor();
+
+    if (compositor.focused) swc_window_end_resize(compositor.focused);
+
+    if (!chord.left && !chord.middle && !chord.right) input.active = false;
+
+    /* let clients see the release we swallowed */
+    swc_pointer_send_button(time, b, state);
+  }
+}
+
+static void
+handle_custom(uint32_t b, bool pressed, bool was_left, uint32_t time,
+              uint32_t state)
+{
+  if (b != BTN_MIDDLE || !pressed || !was_left || input.active) return;
+
+  click_cancel();
+  stop_select();
+
+  if (compositor.focused) {
+    struct window *w;
+    wl_list_for_each(w, &compositor.windows, link)
+    {
+      if (w->swc == compositor.focused) {
+
+        if (strcmp(custom_chord, "sticky") == 0)
+          w->sticky = !w->sticky;
+        
+		else if (strcmp(custom_chord, "fullscreen") == 0) {
+          w->sticky = !w->sticky;
+          swc_window_set_fullscreen(compositor.focused,
+                                    compositor.current_screen->swc);
+        }
+
+        else if (strcmp(custom_chord, "jump") == 0) {
+          bool state = focus_center;
+          focus_center = true;
+          chord.mode = MODE_JUMP;
+          struct window *closest = NULL;
+          struct window *n;
+          struct swc_rectangle ngeom;
+
+          int32_t x = 0, y = 0;
+          cursor_position_raw(&x, &y);
+          int64_t mindist = INT64_MAX;
+          wl_list_for_each(n, &compositor.windows, link)
+          {
+            if (!n->swc) continue;
+            if (!swc_window_get_geometry(n->swc, &ngeom)) continue;
+
+            /* makes a cool switcher thingy */
+            if (n->swc == compositor.focused) continue;
+
+            int64_t dx = (int64_t)x - (int64_t)ngeom.x;
+            int64_t dy = (int64_t)y - (int64_t)ngeom.y;
+
+            /* fuck sqrt() */
+            int64_t dist = dx * dx + dy * dy;
+
+            if (dist < mindist) {
+              closest = n;
+              mindist = dist;
+            }
+          }
+
+          if (closest != NULL) focus_window(closest->swc, "jump");
+
+          chord.mode = MODE_NONE;
+          focus_center = state;
+        }
+        break;
+      }
+    }
+  }
+
+  input.active = true;
+  swc_pointer_send_button(time, b, state);
+}
+
+static void
+handle_select(uint32_t b, bool pressed, bool acme)
+{
+  int32_t x, y;
+  uint32_t outer_w, outer_h;
+  uint32_t bw = outer_border_width + inner_border_width;
+  struct swc_rectangle geometry;
+
+  if (chord.left && chord.right && !input.active && !acme) {
+    click_cancel();
+    input.active = true;
+    if (cursor_position(&x, &y)) {
+      sel.selecting = true;
+      update_mode_cursor();
+      sel.start_x = x;
+      sel.start_y = y;
+      sel.cur_x = x;
+      sel.cur_y = y;
+      swc_overlay_set_box(x, y, x, y, select_box_color, select_box_border);
+      if (!sel.timer)
+        sel.timer =
+            wl_event_loop_add_timer(compositor.evloop, select_tick, NULL);
+      if (sel.timer) wl_event_source_timer_update(sel.timer, timerms);
+    }
+  }
+
+  if (b == BTN_RIGHT && !pressed && sel.selecting) {
+    int32_t x1, y1, x2, y2;
+    if (!cursor_position(&x, &y)) {
+      x = sel.cur_x;
+      y = sel.cur_y;
+    }
+    stop_select();
+
+    x1 = sel.start_x < x ? sel.start_x : x;
+    y1 = sel.start_y < y ? sel.start_y : y;
+    x2 = sel.start_x < x ? x : sel.start_x;
+    y2 = sel.start_y < y ? y : sel.start_y;
+    outer_w = (uint32_t)abs(x2 - x1);
+    outer_h = (uint32_t)abs(y2 - y1);
+    if (outer_w < (50 + 2 * bw)) outer_w = 50 + 2 * bw;
+    if (outer_h < (50 + 2 * bw)) outer_h = 50 + 2 * bw;
+
+    /* swc_window_set_*  content geom */
+    geometry.x = x1 + (int32_t)bw;
+    geometry.y = y1 + (int32_t)bw;
+    geometry.width = outer_w > 2 * bw ? outer_w - 2 * bw : 1;
+    geometry.height = outer_h > 2 * bw ? outer_h - 2 * bw : 1;
+    spawn_term_select(&geometry);
+    printf("spawned terminal at %d,%d %ux%u\n", geometry.x, geometry.y,
+           geometry.width, geometry.height);
+  }
+}
+
+static void
+handle_click(uint32_t b, bool pressed, bool is_lr, bool is_chord_button,
+             uint32_t time, uint32_t state)
+{
+  /* while a chord is active swallow left/right events so they don't go to
+   * clients */
+  if (is_chord_button && input.active && !sel.selecting) {
+    bool was_scrolling = chord.mode == MODE_SCROLL;
+    if (!chord.right) chord.mode = MODE_NONE;
+    if (was_scrolling && chord.mode != MODE_SCROLL) update_mode_cursor();
+    if (chord.mode != MODE_SCROLL) scroll_stop();
+    if (!chord.left && !chord.middle && !chord.right) input.active = false;
+    return;
+  }
+
+  if (b == BTN_MIDDLE) {
+    if (chord.mode == MODE_MOVE) return;
+    swc_pointer_send_button(time, b, state);
+    return;
+  }
+
+  /* pass normal clicks through to clients */
+  if (is_lr && pressed && !sel.selecting) {
+    bool other_down = (b == BTN_LEFT) ? chord.right : chord.left;
+    if (other_down) {
+      /* chord will activate via the block above */
+    } else if (!chord.pending) {
+      chord.pending = true;
+      chord.forwarded = false;
+      chord.button = b;
+      chord.time = time;
+      if (!chord.timer)
+        chord.timer =
+            wl_event_loop_add_timer(compositor.evloop, click_timeout, NULL);
+      if (chord.timer)
+        wl_event_source_timer_update(chord.timer, chord_click_timeout_ms);
+      return;
+    }
+  }
+
+  if (is_lr && !pressed && !sel.selecting) {
+    if (chord.pending && chord.button == b) {
+      if (!chord.forwarded) {
+        swc_pointer_send_button(chord.time, chord.button,
+                                WL_POINTER_BUTTON_STATE_PRESSED);
+      }
+      swc_pointer_send_button(time, b, WL_POINTER_BUTTON_STATE_RELEASED);
+      click_cancel();
+      return;
+    }
+    swc_pointer_send_button(time, b, WL_POINTER_BUTTON_STATE_RELEASED);
+    return;
+  }
+
+  if (!is_lr) {
+    swc_pointer_send_button(time, b, state);
+    return;
+  }
+}
+
 void
 button(void *data, uint32_t time, uint32_t b, uint32_t state)
 {
   const char *name;
   bool pressed;
   int32_t x, y;
-  struct swc_rectangle geometry;
   bool was_left = chord.left;
   bool was_right = chord.right;
-  // bool was_middle = chord.middle;
   bool is_lr;
   bool is_chord_button;
-  bool acme_passthrough = false;
+  bool acme = false;
 
   (void)data;
   (void)time;
@@ -138,334 +462,40 @@ button(void *data, uint32_t time, uint32_t b, uint32_t state)
 
   if (cursor_position(&x, &y)) {
     struct swc_window *target = swc_window_at(x, y);
-    if (is_acme(target) && target == compositor.focused)
-      acme_passthrough = true;
+    if (is_acme(target) && target == compositor.focused) acme = true;
   }
 
   /* allow 1-3 chord to go to acme specifically */
-  if (acme_passthrough && is_lr && pressed) {
+  if (acme && is_lr && pressed) {
     bool other_down = (b == BTN_LEFT) ? was_right : was_left;
-
     if (other_down) {
       swc_pointer_send_button(time, b, state);
       return;
     }
   }
 
-  if (b == BTN_LEFT && !pressed && chord.mode == MODE_KILL) {
-    if (cursor_position(&x, &y)) {
-      struct swc_window *target = swc_window_at(x, y);
+  handle_kill(b, pressed, was_right, acme);
+  handle_scroll(b, pressed, was_right);
+  handle_move(b, pressed, time, state, was_left);
+  handle_resize(b, pressed, time, state, was_right);
+  handle_custom(b, pressed, was_left, time, state);
 
-      if (target) swc_window_close(target);
-    }
-    chord.mode = MODE_NONE;
-    update_mode_cursor();
-    if (!chord.left && !chord.middle && !chord.right) input.active = false;
-    return;
-  }
-
-  if (b == BTN_LEFT && pressed && was_right && !input.active &&
-      !acme_passthrough) {
-    click_cancel();
-    stop_select();
-    input.active = true;
-    chord.mode = MODE_KILL;
-    update_mode_cursor();
-    return;
-  }
-
-  if (b == BTN_MIDDLE && pressed && was_right && !input.active) {
-    click_cancel();
-    stop_select();
-    input.active = true;
-    chord.mode = MODE_SCROLL;
-    scroll.cursor_dir = -1;
-    update_mode_cursor();
-    scroll_stop();
-
-    /* start drag-to-scroll tracking (if enabled) */
-    if (scroll_drag_mode) {
-      if (cursor_position(&x, &y)) {
-        input.scroll_drag_last_x = x;
-        input.scroll_drag_last_y = y;
-      }
-      if (!input.scroll_drag_timer)
-        input.scroll_drag_timer =
-            wl_event_loop_add_timer(compositor.evloop, scroll_drag_tick, NULL);
-      if (input.scroll_drag_timer)
-        wl_event_source_timer_update(input.scroll_drag_timer, timerms);
-    }
-
-    return;
-  }
-
-  if (b == BTN_MIDDLE && !pressed && was_left && !input.active &&
-      !sel.selecting && !acme_passthrough) {
-    click_cancel();
-    stop_select();
-    input.active = true;
-    chord.mode = MODE_MOVE;
-    update_mode_cursor();
-
-    /* get starting pos to be used for easing calculation*/
-    if (compositor.focused && cursor_position(&x, &y)) {
-      struct swc_rectangle geometry;
-      if (swc_window_get_geometry(compositor.focused, &geometry)) {
-        input.move_start_win_x = geometry.x;
-        input.move_start_win_y = geometry.y;
-        input.move_start_cursor_x = x;
-        input.move_start_cursor_y = y;
-      }
-    }
-
-    /* auto-scroll timer for scroll durin win move */
-    if (!input.move_scroll_timer)
-      input.move_scroll_timer =
-          wl_event_loop_add_timer(compositor.evloop, move_scroll_tick, NULL);
-    if (input.move_scroll_timer)
-      wl_event_source_timer_update(input.move_scroll_timer, timerms);
-
-    /* forward the release so clients dont see stuck */
-    swc_pointer_send_button(time, b, state);
-
-    return;
-  }
-
-  if (b == BTN_LEFT && !pressed && chord.mode == MODE_MOVE) {
-    chord.mode = MODE_NONE;
-    update_mode_cursor();
-
-    /* stop timer */
-    if (input.move_scroll_timer) {
-      wl_event_source_remove(input.move_scroll_timer);
-      input.move_scroll_timer = NULL;
-    }
-
-    if (!chord.left && !chord.middle && !chord.right) input.active = false;
-
-    /* forward the release so clients dont see stuk */
-    swc_pointer_send_button(time, b, state);
-
-    return;
-  }
-
-  if (b == BTN_MIDDLE && !pressed && was_right && !input.active &&
-      !sel.selecting) {
-    click_cancel();
-    stop_select();
-    input.active = true;
-    chord.mode = MODE_RESIZE;
-    update_mode_cursor();
-
-    if (compositor.focused) /* bottom right */
-      swc_window_begin_resize(compositor.focused,
-                              SWC_WINDOW_EDGE_RIGHT | SWC_WINDOW_EDGE_BOTTOM);
-
-    /* forward the middle release so clients don't see it stuck */
-    swc_pointer_send_button(time, b, state);
-
-    return;
-  }
-
-  if (b == BTN_RIGHT && !pressed && chord.mode == MODE_RESIZE) {
-    chord.mode = MODE_NONE;
-    update_mode_cursor();
-
-    if (compositor.focused) swc_window_end_resize(compositor.focused);
-
-    if (!chord.left && !chord.middle && !chord.right) input.active = false;
-
-    /* let clients see the release we swallowed */
-    swc_pointer_send_button(time, b, state);
-
-    return;
-  }
-
-  if (b == BTN_MIDDLE && pressed && was_left && !input.active) {
-    click_cancel();
-    stop_select();
-
-    if (compositor.focused) {
-      struct window *w;
-      wl_list_for_each(w, &compositor.windows, link)
-      {
-        if (w->swc == compositor.focused) {
-#if defined(STICKY)
-          w->sticky = !w->sticky;
-#elif defined(FULLSCREEN)
-          w->sticky = !w->sticky;
-          swc_window_set_fullscreen(compositor.focused,
-                                    compositor.current_screen->swc);
-#elif defined(JUMP)
-          bool state = focus_center;
-          focus_center = true;
-          chord.mode = MODE_JUMP;
-          struct window *closest = NULL;
-          struct window *n;
-          struct swc_rectangle ngeom;
-
-          int32_t x = 0, y = 0;
-          cursor_position_raw(&x, &y);
-          int64_t mindist = INT64_MAX;
-          wl_list_for_each(n, &compositor.windows, link)
-          {
-            if (!n->swc) continue;
-
-            if (!swc_window_get_geometry(n->swc, &ngeom)) continue;
-
-            /* makes a cool switcher thingy */
-            if (n->swc == compositor.focused) continue;
-
-            int64_t dx = (int64_t)x - (int64_t)ngeom.x;
-            int64_t dy = (int64_t)y - (int64_t)ngeom.y;
-
-            /* fuck sqrt() */
-            int64_t dist = dx * dx + dy * dy;
-
-            if (dist < mindist) {
-              closest = n;
-              mindist = dist;
-            }
-          }
-
-          if (closest != NULL) focus_window(closest->swc, "jump");
-
-          chord.mode = MODE_NONE;
-          focus_center = state;
-#endif
-          break;
-        }
-      }
-    }
-
-    input.active = true;
-    swc_pointer_send_button(time, b, state);
-    return;
-  }
-
-  if (b == BTN_MIDDLE && !pressed && chord.mode == MODE_SCROLL) {
-    return;
-  }
-
+  /* only left button focuses windows */
   if (pressed && is_lr && !sel.selecting) {
     bool other_down = (b == BTN_LEFT) ? was_right : was_left;
-
-    /* stop auto-scrolling on any clics */
+    if (b == BTN_LEFT && !other_down && cursor_position(&x, &y)) {
+      struct swc_window *target = swc_window_at(x, y);
+      if (target) focus_window(target, "click");
+    }
+    /* stop auto-scrolling on any clicks */
     if (scroll.auto_scrolling) {
       scroll.auto_scrolling = false;
       scroll_stop();
     }
-
-    /* only left button focuses windows */
-    if (b == BTN_LEFT && !other_down && cursor_position(&x, &y)) {
-      struct swc_window *target = swc_window_at(x, y);
-
-      if (target) focus_window(target, "click");
-    }
   }
 
-  if (chord.left && chord.right && !input.active && !acme_passthrough) {
-    click_cancel();
-    input.active = true;
-    if (cursor_position(&x, &y)) {
-      sel.selecting = true;
-      update_mode_cursor();
-      sel.start_x = x;
-      sel.start_y = y;
-      sel.cur_x = x;
-      sel.cur_y = y;
-      swc_overlay_set_box(x, y, x, y, select_box_color, select_box_border);
-      if (!sel.timer)
-        sel.timer =
-            wl_event_loop_add_timer(compositor.evloop, select_tick, NULL);
-      if (sel.timer) wl_event_source_timer_update(sel.timer, timerms);
-    }
-  }
-
-  /* while a chord is active swallow left/right events so they don't go to
-   * clients */
-  if (is_chord_button && input.active && !sel.selecting) {
-    bool was_scrolling = chord.mode == MODE_SCROLL;
-    if (!chord.right) chord.mode = MODE_NONE;
-    if (was_scrolling && chord.mode != MODE_SCROLL) update_mode_cursor();
-    if (chord.mode != MODE_SCROLL) scroll_stop();
-    if (!chord.left && !chord.middle && !chord.right) input.active = false;
-    return;
-  }
-
-  if (b == BTN_MIDDLE) {
-    if (chord.mode == MODE_MOVE) return;
-    swc_pointer_send_button(time, b, state);
-    return;
-  }
-
-  /* pass normal clicks through to clients */
-  if (is_lr && pressed && !sel.selecting) {
-    bool other_down = (b == BTN_LEFT) ? was_right : was_left;
-    if (other_down) {
-      /* chord will activate via the block above */
-    } else if (!chord.pending) {
-      chord.pending = true;
-      chord.forwarded = false;
-      chord.button = b;
-      chord.time = time;
-      if (!chord.timer)
-        chord.timer =
-            wl_event_loop_add_timer(compositor.evloop, click_timeout, NULL);
-      if (chord.timer)
-        wl_event_source_timer_update(chord.timer, chord_click_timeout_ms);
-      return;
-    }
-  }
-
-  if (is_lr && !pressed && !sel.selecting) {
-    if (chord.pending && chord.button == b) {
-      if (!chord.forwarded) {
-        swc_pointer_send_button(chord.time, chord.button,
-                                WL_POINTER_BUTTON_STATE_PRESSED);
-      }
-      swc_pointer_send_button(time, b, WL_POINTER_BUTTON_STATE_RELEASED);
-      click_cancel();
-      return;
-    }
-    swc_pointer_send_button(time, b, WL_POINTER_BUTTON_STATE_RELEASED);
-    return;
-  }
-
-  if (b == BTN_RIGHT && !pressed && sel.selecting) {
-    int32_t x1, y1, x2, y2;
-    uint32_t outer_w, outer_h;
-    uint32_t bw = outer_border_width + inner_border_width;
-
-    if (!cursor_position(&x, &y)) {
-      x = sel.cur_x;
-      y = sel.cur_y;
-    }
-    stop_select();
-
-    x1 = sel.start_x < x ? sel.start_x : x;
-    y1 = sel.start_y < y ? sel.start_y : y;
-    x2 = sel.start_x < x ? x : sel.start_x;
-    y2 = sel.start_y < y ? y : sel.start_y;
-    outer_w = (uint32_t)abs(x2 - x1);
-    outer_h = (uint32_t)abs(y2 - y1);
-    if (outer_w < (50 + 2 * bw)) outer_w = 50 + 2 * bw;
-    if (outer_h < (50 + 2 * bw)) outer_h = 50 + 2 * bw;
-
-    /* swc_window_set_*  content geom */
-    geometry.x = x1 + (int32_t)bw;
-    geometry.y = y1 + (int32_t)bw;
-    geometry.width = outer_w > 2 * bw ? outer_w - 2 * bw : 1;
-    geometry.height = outer_h > 2 * bw ? outer_h - 2 * bw : 1;
-    spawn_term_select(&geometry);
-    printf("spawned terminal at %d,%d %ux%u\n", geometry.x, geometry.y,
-           geometry.width, geometry.height);
-  }
-
-  if (!is_lr) {
-    swc_pointer_send_button(time, b, state);
-    return;
-  }
+  handle_select(b, pressed, acme);
+  handle_click(b, pressed, is_lr, is_chord_button, time, state);
 
   if (!chord.left && !chord.middle && !chord.right) input.active = false;
 }
