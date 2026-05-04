@@ -1,13 +1,14 @@
 PREFIX = /usr/local
 BINDIR = $(PREFIX)/bin
+PKG_CONFIG = pkg-config
 
 CC = cc
 CFLAGS = -O2 -std=c99 -Wall -Wextra -I$(PREFIX)/include
 LDFLAGS = -L$(PREFIX)/lib -Wl,-rpath,$(PREFIX)/lib
 
-PKGS = swc wayland-server libinput pixman-1 xkbcommon libdrm wld libudev xcb xcb-composite xcb-ewmh xcb-icccm
-CFLAGS += `pkg-config --cflags $(PKGS)`
-LDLIBS += `pkg-config --libs $(PKGS)`
+PKGS = swc
+CFLAGS += `$(PKG_CONFIG) --cflags $(PKGS)`
+LDLIBS += `$(PKG_CONFIG) --libs $(PKGS)`
 
 SRC = config.h src/hevel.c src/input.c src/scroll.c src/select.c src/window.c src/zoom.c
 
