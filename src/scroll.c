@@ -10,6 +10,8 @@ move_scroll_tick(void *data)
   int32_t x, y;
   struct swc_rectangle geometry;
   int32_t screen_height = 0;
+  int32_t screen_width = 0;
+  int32_t screen_x = 0;
 
   (void)data;
   if (chord.mode != MODE_MOVE) return 0;
@@ -17,6 +19,8 @@ move_scroll_tick(void *data)
   /* get screen size*/
   if (compositor.current_screen) {
     screen_height = compositor.current_screen->swc->geometry.height;
+    screen_width  = compositor.current_screen->swc->geometry.width;
+    screen_x      = compositor.current_screen->swc->geometry.x;
   }
 
   if (screen_height == 0) {
@@ -43,7 +47,7 @@ move_scroll_tick(void *data)
     swc_window_set_position(compositor.focused, new_x, new_y);
   }
 
-  /* check near top bottom and scroll accordingly */
+  /* check near top/bottom and scroll accordingly */
   if (y < move_scroll_edge_threshold) {
     scroll.pending_px += move_scroll_speed;
     if (!scroll.timer)
@@ -56,6 +60,23 @@ move_scroll_tick(void *data)
       scroll.timer =
           wl_event_loop_add_timer(compositor.evloop, scroll_tick, NULL);
     if (scroll.timer) wl_event_source_timer_update(scroll.timer, 1);
+  }
+
+  /* if we are multi axis scrolling also check left/right and scroll accordingly */
+  if (scroll_drag_mode && screen_width > 0) {
+    if (x < screen_x + move_scroll_edge_threshold) {
+      scroll.pending_px_x += move_scroll_speed;
+      if (!scroll.timer)
+        scroll.timer =
+            wl_event_loop_add_timer(compositor.evloop, scroll_tick, NULL);
+      if (scroll.timer) wl_event_source_timer_update(scroll.timer, 1);
+    } else if (x > screen_x + screen_width - move_scroll_edge_threshold) {
+      scroll.pending_px_x -= move_scroll_speed;
+      if (!scroll.timer)
+        scroll.timer =
+            wl_event_loop_add_timer(compositor.evloop, scroll_tick, NULL);
+      if (scroll.timer) wl_event_source_timer_update(scroll.timer, 1);
+    }
   }
 
   wl_event_source_timer_update(input.move_scroll_timer, timerms);
