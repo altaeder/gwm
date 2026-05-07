@@ -94,10 +94,12 @@ axis(void *data, uint32_t time, uint32_t axis, int32_t value120)
   if (scroll.timer) wl_event_source_timer_update(scroll.timer, 1);
 }
 
-static void
-handle_kill(uint32_t b, bool pressed, bool was_right, bool acme)
+static bool
+handle_kill(uint32_t b, bool pressed, uint32_t time, uint32_t state,
+            bool was_right, bool acme)
 {
-  if (b != BTN_LEFT) return;
+  (void)time; (void)state;
+  if (b != BTN_LEFT) return false;
 
   if (pressed && was_right && !input.active && !acme) {
     click_cancel();
@@ -105,7 +107,7 @@ handle_kill(uint32_t b, bool pressed, bool was_right, bool acme)
     input.active = true;
     chord.mode = MODE_KILL;
     update_mode_cursor();
-    return;
+    return true;
   }
 
   if (!pressed && chord.mode == MODE_KILL) {
@@ -117,13 +119,16 @@ handle_kill(uint32_t b, bool pressed, bool was_right, bool acme)
     chord.mode = MODE_NONE;
     update_mode_cursor();
     if (!chord.left && !chord.middle && !chord.right) input.active = false;
+    return true;
   }
+
+  return false;
 }
 
-static void
+static bool
 handle_scroll(uint32_t b, bool pressed, bool was_right)
 {
-  if (b != BTN_MIDDLE) return;
+  if (b != BTN_MIDDLE) return false;
 
   if (pressed && was_right && !input.active) {
     click_cancel();
@@ -146,13 +151,15 @@ handle_scroll(uint32_t b, bool pressed, bool was_right)
       if (input.scroll_drag_timer)
         wl_event_source_timer_update(input.scroll_drag_timer, timerms);
     }
-    return;
+    return true;
   }
 
-  if (!pressed && chord.mode == MODE_SCROLL) return; /* swallow release */
+  if (!pressed && chord.mode == MODE_SCROLL) return true; /* swallow release */
+
+  return false;
 }
 
-static void
+static bool
 handle_move(uint32_t b, bool pressed, uint32_t time, uint32_t state,
             bool was_left)
 {
@@ -184,7 +191,7 @@ handle_move(uint32_t b, bool pressed, uint32_t time, uint32_t state,
 
     /* forward the release so clients don't see stuck */
     swc_pointer_send_button(time, b, state);
-    return;
+    return true;
   }
 
   if (b == BTN_LEFT && !pressed && chord.mode == MODE_MOVE) {
@@ -200,10 +207,13 @@ handle_move(uint32_t b, bool pressed, uint32_t time, uint32_t state,
 
     /* forward the release so clients don't see stuck */
     swc_pointer_send_button(time, b, state);
+    return true;
   }
+
+  return false;
 }
 
-static void
+static bool
 handle_resize(uint32_t b, bool pressed, uint32_t time, uint32_t state,
               bool was_right)
 {
@@ -221,7 +231,7 @@ handle_resize(uint32_t b, bool pressed, uint32_t time, uint32_t state,
 
     /* forward the middle release so clients don't see it stuck */
     swc_pointer_send_button(time, b, state);
-    return;
+    return true;
   }
 
   if (b == BTN_RIGHT && !pressed && chord.mode == MODE_RESIZE) {
@@ -234,7 +244,10 @@ handle_resize(uint32_t b, bool pressed, uint32_t time, uint32_t state,
 
     /* let clients see the release we swallowed */
     swc_pointer_send_button(time, b, state);
+    return true;
   }
+
+  return false;
 }
 
 static void
@@ -364,9 +377,12 @@ static void
 handle_click(uint32_t b, bool pressed, bool is_lr, bool is_chord_button,
              uint32_t time, uint32_t state)
 {
-  /* while a chord is active swallow left/right events so they don't go to
-   * clients */
-  if (is_chord_button && input.active && !sel.selecting) {
+  /* while a chord is active swallow button events so they don't go to
+   * clients, only when no mode owns the event, modes can handle
+   * their own teardown and button forwarding */
+  if (is_chord_button && input.active && !sel.selecting &&
+      chord.mode != MODE_KILL && chord.mode != MODE_MOVE &&
+      chord.mode != MODE_RESIZE) {
     bool was_scrolling = chord.mode == MODE_SCROLL;
     if (!chord.right) chord.mode = MODE_NONE;
     if (was_scrolling && chord.mode != MODE_SCROLL) update_mode_cursor();
@@ -474,10 +490,11 @@ button(void *data, uint32_t time, uint32_t b, uint32_t state)
     }
   }
 
-  handle_kill(b, pressed, was_right, acme);
-  handle_scroll(b, pressed, was_right);
-  handle_move(b, pressed, time, state, was_left);
-  handle_resize(b, pressed, time, state, was_right);
+  bool chord_consumed =
+      handle_kill(b, pressed, time, state, was_right, acme) ||
+      handle_scroll(b, pressed, was_right) ||
+      handle_move(b, pressed, time, state, was_left) ||
+      handle_resize(b, pressed, time, state, was_right);
   handle_custom(b, pressed, was_left, time, state);
 
   /* only left button focuses windows */
@@ -495,7 +512,8 @@ button(void *data, uint32_t time, uint32_t b, uint32_t state)
   }
 
   handle_select(b, pressed, acme);
-  handle_click(b, pressed, is_lr, is_chord_button, time, state);
+  if (!chord_consumed)
+    handle_click(b, pressed, is_lr, is_chord_button, time, state);
 
   if (!chord.left && !chord.middle && !chord.right) input.active = false;
 }
