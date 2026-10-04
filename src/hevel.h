@@ -40,6 +40,7 @@ typedef enum {
   MODE_RESIZE,
   MODE_JUMP,
   MODE_SELECT,
+  MODE_FULLSCREEN,
 } chord_mode;
 
 struct window {
@@ -54,6 +55,8 @@ struct window {
   struct swc_rectangle saved_geometry;
 
   bool sticky;
+  bool fullscreen;
+  struct swc_rectangle pre_fullscreen_geometry;
 };
 
 struct screen {
@@ -98,6 +101,9 @@ extern struct chord_state chord;
 struct scroll_state {
   int32_t pending_px, pending_px_x;
   int32_t rem, rem_x;
+  bool gesture_active;             // <-- new: true
+  int32_t total_pan_x, total_pan_y;   // <-- new
+  double gesture_vx, gesture_vy;   // <-- new: latched velocity from last swipe update
   int8_t cursor_dir;
   bool active;
   bool auto_scrolling;

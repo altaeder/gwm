@@ -7,7 +7,18 @@
 struct screen;
 
 void
-focus_window(struct swc_window *swc, const char *reason);
+center_window(struct swc_window *swc);
+
+void
+focus_window(struct swc_window *swc);
+
+void
+switch_window();  //(struct swc_window *swc);
+             //, const char *reason);
+//void
+//windowdestroy(void *data);
+             //, const char *reason);
+
 bool
 is_visible(struct swc_window *w, struct screen *screen);
 bool

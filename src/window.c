@@ -3,6 +3,8 @@
 #include "input.h"
 #include "scroll.h"
 #include "zoom.h"
+#include "ipc.h"
+//#include <unistd.h>
 
 static pid_t
 get_parent_pid(pid_t pid);
@@ -13,24 +15,122 @@ is_terminal_window(struct window *w);
 static void
 mk_spawn_link(struct window *terminal, struct window *child);
 
+// Center Window (window switcher backend) Ω
 void
-focus_window(struct swc_window *swc, const char *reason)
+center_window(struct swc_window *swc)
 {
-  const char *from = compositor.focused && compositor.focused->title
-                         ? compositor.focused->title
-                         : "";
-  const char *to = swc && swc->title ? swc->title : "";
+  struct swc_rectangle window_geom;
+  if (!swc || !compositor.current_screen)
+    return;
+  if (!swc_window_get_geometry(swc, &window_geom))
+    return;
 
-  if (compositor.focused == swc) return;
-  printf("focus %p ('%s') -> %p ('%s') (%s)\n", (void *)compositor.focused,
-         from, (void *)swc, to, reason);
+  int32_t window_center_x =
+    window_geom.x + (int32_t)window_geom.width / 2;
+  int32_t window_center_y =
+    window_geom.y + (int32_t)window_geom.height / 2;
+  int32_t screen_center_x =
+    compositor.current_screen->swc->geometry.x +
+    (int32_t)compositor.current_screen->swc->geometry.width / 2;
+  int32_t screen_center_y =
+    compositor.current_screen->swc->geometry.y +
+    (int32_t)compositor.current_screen->swc->geometry.height / 2;
+
+  int32_t delta_x = screen_center_x - window_center_x;
+  int32_t delta_y = screen_center_y - window_center_y;
+
+  if (delta_x == 0 && delta_y == 0)
+  {
+    swc_window_stack(compositor.focused, -1); // Ω force layer to top!
+    //swc_window_raise(compositor.focused); // Ω force layer to top!
+    return;
+  }
+
+  scroll_stop();
+  scroll.pending_px = delta_y;
+  scroll.pending_px_x = delta_x;
+  scroll.rem = 0;
+  scroll.rem_x = 0;
+  scroll.auto_scrolling = true;
+  if (!scroll.timer)
+    scroll.timer = wl_event_loop_add_timer(compositor.evloop, scroll_tick, NULL);
+  if (scroll.timer)
+    wl_event_source_timer_update(scroll.timer, timerms);
+}
+
+void                            // Ω
+switch_window()
+{
+  //bool state = focus_center;
+  //focus_center = true;
+  struct window *closest = NULL; // = NULL;
+  struct window *n;
+  struct swc_rectangle ngeom;
+
+  int32_t x = 960, y = 540; // middle of screen, 1920x1080, formerly 0,0, then updated by ↓↓
+  int64_t mindist = INT64_MAX;
+  wl_list_for_each(n, &compositor.windows, link)
+  {
+    if (!n->swc) continue;
+    if (!swc_window_get_geometry(n->swc, &ngeom)) continue;
+
+    /* makes a cool switcher thingy */
+    if (n->swc == compositor.focused) continue;
+
+    int64_t dx = (int64_t)x - (int64_t)ngeom.x;
+    int64_t dy = (int64_t)y - (int64_t)ngeom.y;
+
+    /* fuck sqrt() */
+    int64_t dist = dx * dx + dy * dy;
+
+    if (dist < mindist) {
+      closest = n;
+      mindist = dist;
+    }
+  }
+  if (closest != NULL)
+  {
+        //focus_center = false;
+    if (compositor.focused)                //, "jump");
+      swc_window_set_border(compositor.focused, inner_border_color_inactive,
+                  inner_border_width, outer_border_color_inactive,
+                  outer_border_width);
+
+    // swc_window_focus() formerly here
+    //swc_window_show(closest->swc); //Ω MÅSKE?!
+    swc_window_focus(closest->swc);
+    if (closest->swc)
+      swc_window_set_border(closest->swc, inner_border_color_active, inner_border_width,
+                            outer_border_color_active, outer_border_width);
+
+    compositor.focused = closest->swc;
+  }
+
+  if (compositor.focused)
+  {
+    swc_window_stack(compositor.focused, -1); // Ω force layer to top!
+    swc_window_raise(compositor.focused); // Ω force layer to top!
+    center_window(compositor.focused); // formerly focus_window
+  }
+}
+
+void
+focus_window(struct swc_window *swc)
+             //Ωconst char *reason)
+{
+  //Ωconst char *from = compositor.focused && compositor.focused->title
+  //                       ? compositor.focused->title
+  //                       : "";
+  //Ωconst char *to = swc && swc->title ? swc->title : "";
+
+  //if (compositor.focused == swc) return;
+  // printf("focus %p ('%s') -> %p ('%s') (%s)\n", (void *)compositor.focused,
+   //      from, (void *)swc, to, reason);
 
   if (compositor.focused)
     swc_window_set_border(compositor.focused, inner_border_color_inactive,
                           inner_border_width, outer_border_color_inactive,
                           outer_border_width);
-
-  swc_window_focus(swc);
 
   /* zoom to default size when focusing a window */
   if (enable_zoom && swc && swc_get_zoom() != 1.0f) {
@@ -44,8 +144,9 @@ focus_window(struct swc_window *swc, const char *reason)
     swc_window_set_border(swc, inner_border_color_active, inner_border_width,
                           outer_border_color_active, outer_border_width);
 
+  swc_window_focus(swc);
   compositor.focused = swc;
-
+  //ipc_broadcast_window_add(swc);
   /* center the focused window: both axes in drag mode, vertical only in scroll
    * wheel mode, only when visible or jumping to it, else you can center
    * offscreen windows */
@@ -67,6 +168,7 @@ focus_window(struct swc_window *swc, const char *reason)
           compositor.current_screen->swc->geometry.y +
           (int32_t)compositor.current_screen->swc->geometry.height / 2;
 
+      //ipc_broadcast_window_add(swc);
       /* in drag mode: center on both axes; in scroll wheel mode: vertical only
        */
       int32_t scroll_delta_x =
@@ -91,6 +193,8 @@ focus_window(struct swc_window *swc, const char *reason)
       }
     }
   }
+  swc_window_stack(compositor.focused, -1); // Ω force layer to top!
+  swc_window_raise(compositor.focused); // Ω force layer to top!
 }
 
 bool
@@ -143,7 +247,8 @@ windowdestroy(void *data)
       terminal->hidden_for_spawn = false;
 
       /* focus terminal */
-      focus_window(terminal->swc, "spawn_child_destroyed");
+      focus_window(terminal->swc);
+      //Ω, "spawn_child_destroyed");
     }
   }
 
@@ -157,7 +262,9 @@ windowdestroy(void *data)
     }
   }
 
-  if (compositor.focused == w->swc) focus_window(NULL, "destroy");
+  if (compositor.focused == w->swc) focus_window(NULL);
+                                                 //Ω, "destroy");
+  ipc_broadcast_window_remove(w->swc); // Ω IPC call, window destroyed
   wl_list_remove(&w->link);
   free(w);
 }
@@ -167,6 +274,9 @@ windowappidchanged(void *data)
 {
   struct window *w = data;
   struct swc_rectangle geometry;
+
+  //ipc_broadcast_window_title(w->swc);
+
   bool is_select = input.spawn_pending && w->swc->app_id &&
                    strcmp(w->swc->app_id, select_term_app_id) == 0;
 
@@ -179,9 +289,37 @@ windowappidchanged(void *data)
   input.spawn_pending = false;
 }
 
+static void
+windowtitlechanged(void *data)
+{
+  struct window *w = data;
+
+  ipc_broadcast_full();
+  ipc_broadcast_window_title(w->swc); //Ω IPC call, update window title
+  //ipc_broadcast_window_change(w->swc);
+  //center_window(w->swc);
+}
+
+static void
+windowmoved(void *data)
+{
+  struct window *w = data;
+  ipc_broadcast_window_change(w->swc); //Ω IPC call, update window title
+}
+
+static void
+windowresized(void *data)
+{
+  struct window *w = data;
+  ipc_broadcast_window_change(w->swc); //Ω IPC call, update window title
+}
+
 static const struct swc_window_handler windowhandler = {
     .destroy = windowdestroy,
+    .title_changed = windowtitlechanged,
     .app_id_changed = windowappidchanged,
+    .move = windowmoved,
+    .resize = windowresized,
 };
 
 void
@@ -200,6 +338,7 @@ newwindow(struct swc_window *swc)
   wl_list_init(&w->spawn_children);
   wl_list_init(&w->spawn_link);
   w->hidden_for_spawn = false;
+  w->fullscreen = false;
   w->sticky = false;
 
   wl_list_insert(&compositor.windows, &w->link);
@@ -239,16 +378,26 @@ newwindow(struct swc_window *swc)
     }
   }
 
-  if (is_select) {
+  if (is_select)
+  {
     geometry = input.spawn_geometry;
     if (geometry.width < 50) geometry.width = 50;
     if (geometry.height < 50) geometry.height = 50;
     swc_window_set_geometry(swc, &geometry);
     input.spawn_pending = false;
   }
+
   swc_window_show(swc);
-  printf("window '%s'\n", swc->title ? swc->title : "");
-  focus_window(swc, "new_window");
+  focus_window(swc);
+
+  /*if (!is_select)
+  {
+    center_window(swc);
+  }*/
+  //ipc_broadcast_window_add(w->swc); // Ω IPC call, window created (id, x and y)
+  //sleep ( 1 );
+  //ipc_broadcast_full();
+  //Ω, "new_window");
 }
 
 void
@@ -273,7 +422,7 @@ newscreen(struct swc_screen *swc)
   s->swc = swc;
   wl_list_insert(&compositor.screens, &s->link);
   swc_screen_set_handler(swc, &screenhandler, s);
-  printf("screen %dx%d\n", swc->geometry.width, swc->geometry.height);
+  // printf("screen %dx%d\n", swc->geometry.width, swc->geometry.height);
 
   if (!input.cursor_timer)
     input.cursor_timer =

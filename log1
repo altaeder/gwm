@@ -1,0 +1,98 @@
+screen 1920x1080
+wayland-0
+button left (272) pressed
+state: mode=0 active=0 L=1 M=0 R=0
+button left (272) released
+state: mode=0 active=0 L=0 M=0 R=0
+button right (273) pressed
+state: mode=0 active=0 L=0 M=0 R=1
+button right (273) released
+state: mode=0 active=0 L=0 M=0 R=0
+button left (272) pressed
+state: mode=0 active=0 L=1 M=0 R=0
+button right (273) pressed
+state: mode=0 active=1 L=1 M=0 R=1
+button left (272) released
+state: mode=0 active=1 L=0 M=0 R=1
+button right (273) released
+spawned terminal at 499,267 908x625
+state: mode=0 active=0 L=0 M=0 R=0
+window ''
+focus (nil) ('') -> 0x5bb2d36ccf20 ('') (new_window)
+button right (273) pressed
+state: mode=0 active=0 L=0 M=0 R=1
+button right (273) released
+state: mode=0 active=0 L=0 M=0 R=0
+button right (273) pressed
+state: mode=0 active=0 L=0 M=0 R=1
+button right (273) released
+state: mode=0 active=0 L=0 M=0 R=0
+button right (273) pressed
+state: mode=0 active=0 L=0 M=0 R=1
+button middle (274) pressed
+state: mode=2 active=1 L=0 M=1 R=1
+button middle (274) released
+state: mode=2 active=1 L=0 M=0 R=1
+button right (273) released
+state: mode=0 active=0 L=0 M=0 R=0
+button right (273) pressed
+state: mode=0 active=0 L=0 M=0 R=1
+button middle (274) pressed
+state: mode=2 active=1 L=0 M=1 R=1
+button middle (274) released
+state: mode=2 active=1 L=0 M=0 R=1
+button right (273) released
+state: mode=0 active=0 L=0 M=0 R=0
+button middle (274) pressed
+state: mode=0 active=0 L=0 M=1 R=0
+button right (273) pressed
+state: mode=0 active=0 L=0 M=1 R=1
+button middle (274) released
+state: mode=4 active=1 L=0 M=0 R=1
+button right (273) released
+state: mode=0 active=0 L=0 M=0 R=0
+button middle (274) pressed
+state: mode=0 active=0 L=0 M=1 R=0
+button left (272) pressed
+state: mode=0 active=0 L=1 M=1 R=0
+button left (272) released
+state: mode=0 active=0 L=0 M=1 R=0
+button middle (274) released
+state: mode=0 active=0 L=0 M=0 R=0
+button left (272) pressed
+state: mode=0 active=0 L=1 M=0 R=0
+button middle (274) pressed
+state: mode=0 active=1 L=1 M=1 R=0
+button left (272) released
+state: mode=0 active=1 L=0 M=1 R=0
+button middle (274) released
+state: mode=0 active=0 L=0 M=0 R=0
+button middle (274) pressed
+state: mode=0 active=0 L=0 M=1 R=0
+button left (272) pressed
+state: mode=0 active=0 L=1 M=1 R=0
+button middle (274) released
+state: mode=3 active=1 L=1 M=0 R=0
+button left (272) released
+state: mode=0 active=0 L=0 M=0 R=0
+button middle (274) pressed
+state: mode=0 active=0 L=0 M=1 R=0
+button right (273) pressed
+state: mode=0 active=0 L=0 M=1 R=1
+button middle (274) released
+state: mode=4 active=1 L=0 M=0 R=1
+button right (273) released
+state: mode=0 active=0 L=0 M=0 R=0
+button right (273) pressed
+state: mode=0 active=0 L=0 M=0 R=1
+button right (273) released
+state: mode=0 active=0 L=0 M=0 R=0
+button right (273) pressed
+state: mode=0 active=0 L=0 M=0 R=1
+button left (272) pressed
+state: mode=1 active=1 L=1 M=0 R=1
+button right (273) released
+state: mode=1 active=1 L=1 M=0 R=0
+button left (272) released
+state: mode=0 active=0 L=0 M=0 R=0
+focus 0x5bb2d36ccf20 ('nu') -> (nil) ('') (destroy)

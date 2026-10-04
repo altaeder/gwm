@@ -1,4 +1,7 @@
 #include "hevel.h"
+#include "ipc.h"   // near the other includes
+#include <unistd.h>
+#include <stdlib.h>
 
 struct compositor_state compositor = {0};
 struct input_state input = {0};
@@ -40,9 +43,9 @@ maybe_enable_nein_cursor_theme(void)
   swc_set_cursor_image(SWC_CURSOR_SIGHT, &nein_cursor_data[sight->offset],
                        sight->width, sight->height, sight->hotspot_x,
                        sight->hotspot_y);
-  swc_set_cursor_image(SWC_CURSOR_UP, &nein_cursor_data[up->offset], up->width,
+  swc_set_cursor_image(SWC_CURSOR_UP, &null_cursor_data[up->offset], up->width, // Ω NEIN set to NULL Ω
                        up->height, up->hotspot_x, up->hotspot_y);
-  swc_set_cursor_image(SWC_CURSOR_DOWN, &nein_cursor_data[down->offset],
+  swc_set_cursor_image(SWC_CURSOR_DOWN, &null_cursor_data[down->offset],
                        down->width, down->height, down->hotspot_x,
                        down->hotspot_y);
 
@@ -61,15 +64,127 @@ static const struct swc_manager manager = {
     .new_device = newdevice,
 };
 
+
+
+// ----------------------------------- Hotkey functions
 static void
 quit(void *data, uint32_t time, uint32_t value, uint32_t state)
 {
   (void)data;
   (void)time;
   (void)value;
-  (void)state;
-  wl_display_terminate(compositor.display);
+  if (state != WL_KEYBOARD_KEY_STATE_PRESSED)
+  {
+    return;
+  }
+  //wl_display_terminate(compositor.display);
+  swc_finalize();
 }
+
+static void
+center(void *data, uint32_t time, uint32_t value, uint32_t state)
+{
+  (void)data;
+  (void)time;
+  (void)value;
+  if (state != WL_KEYBOARD_KEY_STATE_PRESSED)
+  {
+    return;
+  }
+
+  if (compositor.focused) center_window(compositor.focused);
+}
+
+
+
+static void
+switchWindow(void *data, uint32_t time, uint32_t value, uint32_t state)
+{
+  (void)data;
+  (void)time;
+  (void)value;
+  if (state != WL_KEYBOARD_KEY_STATE_PRESSED)
+  {
+    return;
+  }
+
+  //if (compositor.focused)
+  switch_window();
+}
+
+
+static void
+kill_window(void *data, uint32_t time, uint32_t value, uint32_t state)
+{
+  (void)data;
+  (void)time;
+  (void)value;
+  if (state != WL_KEYBOARD_KEY_STATE_PRESSED)
+  {
+    return;
+  }
+  /*int32_t x, y;
+  if (cursor_position(&x, &y))
+  {
+    struct swc_window *target = swc_window_at(x, y);
+    if (target) swc_window_close(target);
+  }*/
+  if (compositor.focused) swc_window_close(compositor.focused);
+}
+
+/////////////////////////////
+////////// COMMANDS /////////
+/////////////////////////////
+
+// Drun-likes
+static const char *appLaunch[] = {"qs", "ipc", "call", "launcher", "toggle", NULL};
+static const char *runMenu[] = {"/home/tutter/GalleryShell/rofi", NULL};
+
+// System
+static const char *powerMenu[] = {"qs", "ipc", "call", "system", "powermenu", NULL};
+static const char *reloadQS[] = {"qs", "kill", "&", "wait", "&&", "qs", "-d", NULL};
+static const char *brightUp[] = {"brightnessctl", "s", "5%+", NULL};
+static const char *brightDown[] = {"brightnessctl", "s", "5%-", NULL};
+static const char *soundUp[] = {"wpctl", "set-volume", "@DEFAULT_SINK@", "3.3%+", "--limit", "1.0", NULL};
+static const char *soundUpSmall[] = {"wpctl", "set-volume", "@DEFAULT_SINK@", "1%+", "--limit", "1.0", NULL};
+static const char *soundDown[] = {"wpctl", "set-volume", "@DEFAULT_SINK@", "3.3%-", NULL};
+static const char *soundDownSmall[] = {"wpctl", "set-volume", "@DEFAULT_SINK@", "1%-", NULL};
+static const char *soundMute[] = {"wpctl", "set-mute", "@DEFAULT_SINK@", "toggle", NULL};
+static const char *playPause[] = {"playerctl", "play-pause", NULL};
+static const char *screenshot[] = {"/home/tutter/GalleryShell/Tools/screenshot", NULL};
+static const char *caps[] = {"/home/tutter/GalleryShell/Tools/caps", NULL};
+
+// Wallpapers
+static const char *switchBgPaint[] = {"/home/tutter/GalleryShell/wawarandom", "-p", NULL};
+static const char *switchBgAscii[] = {"/home/tutter/GalleryShell/wawarandom", "-a", NULL};
+static const char *switchBgTile[] = {"/home/tutter/GalleryShell/wawarandom", "-t", NULL};
+static const char *wallpaperGen[] = {"/home/tutter/GalleryShell/wallgen", NULL};
+
+// Misc
+static const char *sign[] = {"/home/tutter/GalleryShell/sign", NULL};
+static const char *saveWallGen[] = {"/home/tutter/GalleryShell/wall", NULL};
+
+// Autostarts
+static const char *quickshell[] = {"qs", "-d", NULL};
+
+static void
+command(void *data, uint32_t time, uint32_t value, uint32_t state)
+{
+  char *const *run = data;
+  (void)time;
+  (void)value;
+  if (state != WL_KEYBOARD_KEY_STATE_PRESSED) {
+    return;
+  }
+
+  if (fork() == 0)
+  {
+    execvp(run[0], run);
+    exit(EXIT_FAILURE);
+  }
+}
+
+// ------------------------------------
 
 static void
 sig(int s)
@@ -102,11 +217,70 @@ main(void)
     return 1;
   }
 
+  ipc_init(evloop);   // right after swc_initialize succeeds, before the main loop
+
   maybe_enable_nein_cursor_theme();
 
+  swc_set_gesture_handler(handle_gesture, NULL);
+
+  // HOTKEYYYS!!!----------------------------------------------------------------
   swc_add_binding(SWC_BINDING_KEY, SWC_MOD_LOGO | SWC_MOD_SHIFT, XKB_KEY_q,
                   quit, NULL);
+  swc_add_binding(SWC_BINDING_KEY, SWC_MOD_LOGO, XKB_KEY_Return,
+                  center, NULL);
+  swc_add_binding(SWC_BINDING_KEY, SWC_MOD_LOGO, XKB_KEY_w,
+                  kill_window, NULL);
+  swc_add_binding(SWC_BINDING_KEY, SWC_MOD_LOGO, XKB_KEY_Tab,
+                  switchWindow, NULL);
 
+  // Druns
+  swc_add_binding(SWC_BINDING_KEY, SWC_MOD_ANY, XKB_KEY_XF86Favorites,
+                  &command, appLaunch);
+  swc_add_binding(SWC_BINDING_KEY, SWC_MOD_ANY, XKB_KEY_XF86NotificationCenter,
+                  &command, runMenu);
+
+  // SYS-keys
+  swc_add_binding(SWC_BINDING_KEY, SWC_MOD_LOGO, XKB_KEY_Escape,
+                  &command, powerMenu);
+  swc_add_binding(SWC_BINDING_KEY, SWC_MOD_LOGO, XKB_KEY_r,
+                  &command, reloadQS);
+  swc_add_binding(SWC_BINDING_KEY, SWC_MOD_ANY, XKB_KEY_XF86MonBrightnessUp,
+                  &command, brightUp);
+  swc_add_binding(SWC_BINDING_KEY, SWC_MOD_ANY, XKB_KEY_XF86MonBrightnessDown,
+                  &command, brightDown);
+  swc_add_binding(SWC_BINDING_KEY, SWC_MOD_SHIFT, XKB_KEY_XF86AudioRaiseVolume,
+                  &command, soundUpSmall);
+  swc_add_binding(SWC_BINDING_KEY, SWC_MOD_ANY, XKB_KEY_XF86AudioRaiseVolume,
+                  &command, soundUp);
+  swc_add_binding(SWC_BINDING_KEY, SWC_MOD_SHIFT, XKB_KEY_XF86AudioLowerVolume,
+                  &command, soundDownSmall);
+  swc_add_binding(SWC_BINDING_KEY, SWC_MOD_ANY, XKB_KEY_XF86AudioLowerVolume,
+                  &command, soundDown);
+  swc_add_binding(SWC_BINDING_KEY, SWC_MOD_ANY, XKB_KEY_XF86AudioMute,
+                  &command, soundMute);
+  swc_add_binding(SWC_BINDING_KEY, SWC_MOD_ANY, XKB_KEY_XF86AudioMicMute,
+                  &command, playPause);
+  swc_add_binding(SWC_BINDING_KEY, SWC_MOD_ANY, XKB_KEY_Print,
+                  &command, screenshot);
+  swc_add_binding(SWC_BINDING_KEY, SWC_MOD_ANY, XKB_KEY_Caps_Lock,
+                  &command, caps);
+
+  // Wallpapers
+  swc_add_binding(SWC_BINDING_KEY, SWC_MOD_SHIFT, XKB_KEY_XF86Display,
+                  &command, switchBgPaint);
+  swc_add_binding(SWC_BINDING_KEY, SWC_MOD_ALT, XKB_KEY_XF86Display,
+                  &command, switchBgTile);
+  swc_add_binding(SWC_BINDING_KEY, SWC_MOD_LOGO, XKB_KEY_XF86Display,
+                  &command, wallpaperGen);
+  swc_add_binding(SWC_BINDING_KEY, SWC_MOD_ANY, XKB_KEY_XF86Display,
+                  &command, switchBgAscii);
+  // Misc
+  swc_add_binding(SWC_BINDING_KEY, SWC_MOD_LOGO, XKB_KEY_n,
+                  &command, sign);
+  swc_add_binding(SWC_BINDING_KEY, SWC_MOD_LOGO | SWC_MOD_SHIFT, XKB_KEY_s,
+                  &command, saveWallGen);
+
+  // -------------------------------------------------------------------------------
   /* we can bind mouse buttons using SWC_MOD_ANY */
   swc_add_binding(SWC_BINDING_BUTTON, SWC_MOD_ANY, BTN_LEFT, button, NULL);
   swc_add_binding(SWC_BINDING_BUTTON, SWC_MOD_ANY, BTN_MIDDLE, button, NULL);
@@ -127,6 +301,19 @@ main(void)
 
   signal(SIGTERM, sig);
   signal(SIGINT, sig);
+
+
+  char* qsArgs[] = {"qs", "-d", NULL};
+
+  if (fork() == 0)
+  {
+    execvp("qs", qsArgs);
+  }
+
+  if (fork() == 0)
+  {
+    execvp("/home/tutter/hevel-start", NULL);
+  }
 
   wl_display_run(compositor.display);
 

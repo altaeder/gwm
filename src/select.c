@@ -55,9 +55,11 @@ update_mode_cursor(void)
     swc_set_cursor(SWC_CURSOR_SIGHT);
   else if (chord.mode == MODE_SCROLL) {
     if (scroll.cursor_dir < 0)
-      swc_set_cursor(SWC_CURSOR_UP);
+      swc_set_cursor(SWC_CURSOR_DOWN);
+      //swc_set_cursor(NULL);
     else
       swc_set_cursor(SWC_CURSOR_DOWN);
+      //swc_set_cursor(NULL);
   } else if (sel.selecting)
     swc_set_cursor(SWC_CURSOR_CROSS);
   else if (chord.mode == MODE_MOVE || chord.mode == MODE_RESIZE)

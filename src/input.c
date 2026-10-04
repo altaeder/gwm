@@ -4,6 +4,58 @@
 #include "select.h"
 #include "window.h"
 #include "zoom.h"
+#include "ipc.h"
+
+//static struct swc_window *
+//find_focus_target(int32_t x, int32_t y)
+//{
+//  struct window *w;
+//  wl_list_for_each(w, &compositor.windows, link) {
+//    if (!w->swc) continue;
+//    if (!compositor.current_screen || !is_visible(w->swc, compositor.current_screen))
+//      continue;
+//
+//    struct swc_rectangle geom;
+//    if (!swc_window_get_geometry(w->swc, &geom)) continue;
+//
+//    if (x >= geom.x && x < geom.x + (int32_t)geom.width &&
+//        y >= geom.y && y < geom.y + (int32_t)geom.height) {
+//      return w->swc;
+//    }
+//  }
+//  return NULL;
+//}
+
+//HELPER: external StateChecker
+bool
+stateCheck()
+{
+  FILE *fp = fopen("/home/tutter/GalleryShell/tmp/isLocked.txt", "r");
+  int active = 1;
+  int state;
+
+  if (fp == NULL)
+  {
+    printf("Unable to open file.");
+    return 1;
+  }
+
+  fscanf(fp, "%d", &state);
+  fclose(fp);
+
+  //printf("%d", state);
+
+  if (state == active)
+  {
+    //printf("active!");
+    return true;
+  }
+  else
+  {
+    return false;
+    //printf("not active :(");
+  }
+}
 
 int
 click_timeout(void *data)
@@ -94,6 +146,66 @@ axis(void *data, uint32_t time, uint32_t axis, int32_t value120)
   if (scroll.timer) wl_event_source_timer_update(scroll.timer, 1);
 }
 
+// NEW 3 FINGER DRAG VV
+
+void
+handle_gesture(void *data, uint32_t time, uint32_t finger_count,
+              enum swc_gesture_phase phase, double dx, double dy)
+{
+  (void)data; (void)time;
+  int32_t cursor_x = 0;
+  int32_t cursor_y = 0;
+
+  if (finger_count != 3) return;
+
+  if (!cursor_position(&cursor_x, &cursor_y))
+  {
+      cursor_x = 0;
+      cursor_y = 0;
+  }
+
+  switch (phase) {
+  case SWC_GESTURE_BEGIN:
+    click_cancel();
+    stop_select();
+    chord.mode = MODE_SCROLL;
+    scroll.cursor_dir = -1;
+    update_mode_cursor();
+    //if ((scroll.rem == 0 && scroll.rem_x == 0))
+    //  scroll_stop();
+    scroll.gesture_active = true;
+    scroll.gesture_vx = 0;
+    scroll.gesture_vy = 0;
+    input.active = true;
+    ipc_broadcast_cursor(chord.mode, cursor_x, cursor_y); // Ω IPC cursor call
+    break;
+
+  case SWC_GESTURE_UPDATE:
+    if (chord.mode != MODE_SCROLL) return;
+    scroll.gesture_vx = dx;   // just latch the latest velocity sample
+    scroll.gesture_vy = dy;
+    if (!scroll.timer)
+      scroll.timer = wl_event_loop_add_timer(compositor.evloop, scroll_tick, NULL);
+    if (scroll.timer) wl_event_source_timer_update(scroll.timer, 1);
+    break;
+
+  case SWC_GESTURE_END:
+    scroll.gesture_vx = 0;
+    scroll.gesture_vy = 0;
+    scroll.gesture_active = false;
+    chord.mode = MODE_NONE;
+    update_mode_cursor();
+    input.active = false;
+    if ((scroll.pending_px == 0 && scroll.pending_px_x == 0))
+    {
+       ipc_broadcast_cursor(chord.mode, cursor_x, cursor_y); // Ω  IPC cursor call 2
+    }
+    break;                            //   (send "chord_mode: none", to make qs minimap invisible)
+  }
+}
+// NEW 3 FINGER DRAG ^^
+
+
 static bool
 handle_kill(uint32_t b, bool pressed, uint32_t time, uint32_t state,
             bool was_right, bool acme)
@@ -113,6 +225,7 @@ handle_kill(uint32_t b, bool pressed, uint32_t time, uint32_t state,
   if (!pressed && chord.mode == MODE_KILL) {
     int32_t x, y;
     if (cursor_position(&x, &y)) {
+      // struct swc_window *target = find_focus_target(x, y); // <--- ADDITION
       struct swc_window *target = swc_window_at(x, y);
       if (target) swc_window_close(target);
     }
@@ -170,10 +283,15 @@ handle_move(uint32_t b, bool pressed, uint32_t time, uint32_t state,
     input.active = true;
     chord.mode = MODE_MOVE;
     update_mode_cursor();
-
-    if (compositor.focused) {
+    ipc_broadcast_cursor(chord.mode, 0, 0); // Ω IPC cursor, open minimap
+                                      // (static position in move mode, x/y not needed
+    if (compositor.focused)
+    {
       int32_t x, y;
       struct swc_rectangle geom;
+      swc_window_stack(compositor.focused, -1); // Ω force layer to top!
+      //swc_window_raise(compositor.focused); // Ω force layer to top!
+
       if (cursor_position(&x, &y) &&
           swc_window_get_geometry(compositor.focused, &geom)) {
         input.move_start_win_x = geom.x;
@@ -197,6 +315,7 @@ handle_move(uint32_t b, bool pressed, uint32_t time, uint32_t state,
   if (b == BTN_LEFT && !pressed && chord.mode == MODE_MOVE) {
     chord.mode = MODE_NONE;
     update_mode_cursor();
+    ipc_broadcast_cursor(chord.mode, 0, 0); // Ω IPC cursor, close minimap
 
     if (input.move_scroll_timer) {
       wl_event_source_remove(input.move_scroll_timer);
@@ -206,6 +325,8 @@ handle_move(uint32_t b, bool pressed, uint32_t time, uint32_t state,
     if (!chord.left && !chord.middle && !chord.right) input.active = false;
 
     /* forward the release so clients don't see stuck */
+    swc_window_stack(compositor.focused, -1); // Ω force layer to top!
+    //swc_window_raise(compositor.focused); // Ω force layer to top!
     swc_pointer_send_button(time, b, state);
     return true;
   }
@@ -218,7 +339,8 @@ handle_resize(uint32_t b, bool pressed, uint32_t time, uint32_t state,
               bool was_right)
 {
   if (b == BTN_MIDDLE && !pressed && was_right && !input.active &&
-      !sel.selecting) {
+      !sel.selecting)
+  {
     click_cancel();
     stop_select();
     input.active = true;
@@ -226,8 +348,12 @@ handle_resize(uint32_t b, bool pressed, uint32_t time, uint32_t state,
     update_mode_cursor();
 
     if (compositor.focused) /* bottom right */
+    {
+      swc_window_stack(compositor.focused, -1); // Ω force layer to top!
+      //swc_window_raise(compositor.focused); // Ω force layer to top!
       swc_window_begin_resize(compositor.focused,
                               SWC_WINDOW_EDGE_RIGHT | SWC_WINDOW_EDGE_BOTTOM);
+    }
 
     /* forward the middle release so clients don't see it stuck */
     swc_pointer_send_button(time, b, state);
@@ -238,7 +364,12 @@ handle_resize(uint32_t b, bool pressed, uint32_t time, uint32_t state,
     chord.mode = MODE_NONE;
     update_mode_cursor();
 
-    if (compositor.focused) swc_window_end_resize(compositor.focused);
+    if (compositor.focused)
+    {
+      swc_window_end_resize(compositor.focused);
+      swc_window_stack(compositor.focused, -1); // Ω force layer to top!
+      //swc_window_raise(compositor.focused); // Ω force layer to top!
+    }
 
     if (!chord.left && !chord.middle && !chord.right) input.active = false;
 
@@ -250,31 +381,70 @@ handle_resize(uint32_t b, bool pressed, uint32_t time, uint32_t state,
   return false;
 }
 
-static void
+static bool
 handle_custom(uint32_t b, bool pressed, bool was_left, uint32_t time,
               uint32_t state)
 {
-  if (b != BTN_MIDDLE || !pressed || !was_left || input.active) return;
+  if (b != BTN_MIDDLE || !pressed || !was_left || input.active) return false;
 
   click_cancel();
   stop_select();
 
   if (compositor.focused) {
     struct window *w;
+    int32_t x, y;
+    if (cursor_position(&x, &y))
+    {
+      struct swc_window *target = swc_window_at(x, y); // original line
+      //struct swc_window *target = find_focus_target(x, y);   // new line, was: swc_window_at(x, y)
+      if (target && target != compositor.focused)
+      {
+        swc_window_raise(compositor.focused); // Ω force layer to top!
+      }
+    }
+
     wl_list_for_each(w, &compositor.windows, link)
     {
-      if (w->swc == compositor.focused) {
+      if (w->swc == compositor.focused)
+      {
 
         if (strcmp(custom_chord, "sticky") == 0)
           w->sticky = !w->sticky;
-        
-		else if (strcmp(custom_chord, "fullscreen") == 0) {
+
+	/*	else if (strcmp(custom_chord, "fullscreen") == 0) {
           w->sticky = !w->sticky;
           swc_window_set_fullscreen(compositor.focused,
                                     compositor.current_screen->swc);
+        } */
+
+        else if (strcmp(custom_chord, "fullscreen") == 0)
+        {
+          if (!w->fullscreen)
+          {
+            if (swc_window_get_geometry(compositor.focused, &w->pre_fullscreen_geometry)) {
+              w->fullscreen = true;
+              chord.mode = MODE_FULLSCREEN;
+              ipc_broadcast_cursor(chord.mode, 0, 0);
+              // w->sticky = true;
+              swc_window_set_fullscreen(compositor.focused, compositor.current_screen->swc);
+              chord.mode = MODE_NONE;
+            }
+          w->sticky = !w->sticky;
+          }
+          else
+          {
+            w->fullscreen = false;
+            w->sticky = false;
+            chord.mode = MODE_FULLSCREEN;
+            ipc_broadcast_cursor(chord.mode, 0, 0);
+            swc_window_set_stacked(compositor.focused);
+            swc_window_set_geometry(compositor.focused, &w->pre_fullscreen_geometry);
+            chord.mode = MODE_NONE;
+          }
         }
 
-        else if (strcmp(custom_chord, "jump") == 0) {
+        else if (strcmp(custom_chord, "jump") == 0)
+        {
           bool state = focus_center;
           focus_center = true;
           chord.mode = MODE_JUMP;
@@ -305,7 +475,21 @@ handle_custom(uint32_t b, bool pressed, bool was_left, uint32_t time,
             }
           }
 
-          if (closest != NULL) focus_window(closest->swc, "jump");
+          if (closest != NULL)
+          {
+            if (compositor.focused)                //, "jump");
+              swc_window_set_border(compositor.focused, inner_border_color_inactive,
+                          inner_border_width, outer_border_color_inactive,
+                          outer_border_width);
+
+            swc_window_focus(closest->swc);
+            if (closest->swc)
+            swc_window_set_border(closest->swc, inner_border_color_active, inner_border_width,
+                                  outer_border_color_active, outer_border_width);
+
+            compositor.focused = closest->swc;
+            center_window(closest->swc); // formerly focus_window
+          }
 
           chord.mode = MODE_NONE;
           focus_center = state;
@@ -314,9 +498,9 @@ handle_custom(uint32_t b, bool pressed, bool was_left, uint32_t time,
       }
     }
   }
-
   input.active = true;
   swc_pointer_send_button(time, b, state);
+  return true;
 }
 
 static void
@@ -330,7 +514,10 @@ handle_select(uint32_t b, bool pressed, bool acme)
   if (chord.left && chord.right && !input.active && !acme) {
     click_cancel();
     input.active = true;
-    if (cursor_position(&x, &y)) {
+    bool isLocked = stateCheck();
+    if (cursor_position(&x, &y) && !swc_window_at(x, y) && !isLocked)
+    // Ω no spawn if window under or locked
+    {
       sel.selecting = true;
       update_mode_cursor();
       sel.start_x = x;
@@ -368,8 +555,8 @@ handle_select(uint32_t b, bool pressed, bool acme)
     geometry.width = outer_w > 2 * bw ? outer_w - 2 * bw : 1;
     geometry.height = outer_h > 2 * bw ? outer_h - 2 * bw : 1;
     spawn_term_select(&geometry);
-    printf("spawned terminal at %d,%d %ux%u\n", geometry.x, geometry.y,
-           geometry.width, geometry.height);
+    //printf("spawned terminal at %d,%d %ux%u\n", geometry.x, geometry.y,
+    //       geometry.width, geometry.height);
   }
 }
 
@@ -439,7 +626,7 @@ handle_click(uint32_t b, bool pressed, bool is_lr, bool is_chord_button,
 void
 button(void *data, uint32_t time, uint32_t b, uint32_t state)
 {
-  const char *name;
+  //const char *name;
   bool pressed;
   int32_t x, y;
   bool was_left = chord.left;
@@ -455,23 +642,23 @@ button(void *data, uint32_t time, uint32_t b, uint32_t state)
 
   switch (b) {
   case BTN_LEFT:
-    name = "left";
+    //name = "left";
     chord.left = pressed;
     break;
   case BTN_MIDDLE:
-    name = "middle";
+    //name = "middle";
     chord.middle = pressed;
     break;
   case BTN_RIGHT:
-    name = "right";
+    //name = "right";
     chord.right = pressed;
     break;
   default:
-    name = "unknown";
+    //name = "unknown";
     break;
   }
 
-  printf("button %s (%d) %s\n", name, b, pressed ? "pressed" : "released");
+  // printf("button %s (%d) %s\n", name, b, pressed ? "pressed" : "released");
 
   is_lr = (b == BTN_LEFT || b == BTN_RIGHT);
   is_chord_button = (is_lr || b == BTN_MIDDLE);
@@ -494,15 +681,25 @@ button(void *data, uint32_t time, uint32_t b, uint32_t state)
       handle_kill(b, pressed, time, state, was_right, acme) ||
       handle_scroll(b, pressed, was_right) ||
       handle_move(b, pressed, time, state, was_left) ||
-      handle_resize(b, pressed, time, state, was_right);
-  handle_custom(b, pressed, was_left, time, state);
+      handle_resize(b, pressed, time, state, was_right) ||
+      handle_custom(b, pressed, was_left, time, state);
 
   /* only left button focuses windows */
   if (pressed && is_lr && !sel.selecting) {
     bool other_down = (b == BTN_LEFT) ? was_right : was_left;
-    if (b == BTN_LEFT && !other_down && cursor_position(&x, &y)) {
-      struct swc_window *target = swc_window_at(x, y);
-      if (target) focus_window(target, "click");
+    if (b == BTN_LEFT && !other_down && cursor_position(&x, &y) || b == BTN_RIGHT && cursor_position(&x, &y))
+    {
+      struct swc_window *target = swc_window_at(x, y); // original line
+      //struct swc_window *target = find_focus_target(x, y);   // new line, was: swc_window_at(x, y)
+      if (target)
+      {
+        if (target != compositor.focused)
+        {
+          focus_window(target);
+        }
+        //, "click");Ω
+        // swc_pointer_set_focus_window(target);   // <-- new: also force swc's internal pointer focus
+      }
     }
     /* stop auto-scrolling on any clicks */
     if (scroll.auto_scrolling) {
@@ -516,6 +713,9 @@ button(void *data, uint32_t time, uint32_t b, uint32_t state)
     handle_click(b, pressed, is_lr, is_chord_button, time, state);
 
   if (!chord.left && !chord.middle && !chord.right) input.active = false;
+
+  //printf("state: mode=%d active=%d L=%d M=%d R=%d\n",
+  //     chord.mode, input.active, chord.left, chord.middle, chord.right);
 }
 
 int

@@ -3,6 +3,7 @@
 #include "input.h"
 #include "select.h"
 #include "window.h"
+#include "ipc.h"
 
 int
 move_scroll_tick(void *data)
@@ -45,6 +46,7 @@ move_scroll_tick(void *data)
     int32_t new_y =
         geometry.y + (int32_t)((target_y - geometry.y) * move_ease_factor);
     swc_window_set_position(compositor.focused, new_x, new_y);
+    ipc_broadcast_window_move(compositor.focused, new_x, new_y);     // Ω IPC move window call
   }
 
   /* check near top/bottom and scroll accordingly */
@@ -97,6 +99,10 @@ scroll_stop(void)
     wl_event_source_remove(input.scroll_drag_timer);
     input.scroll_drag_timer = NULL;
   }
+
+  int32_t x, y;
+  cursor_position(&x, &y);
+  ipc_broadcast_cursor(chord.mode, x, y);
 }
 
 int
@@ -104,20 +110,28 @@ scroll_tick(void *data)
 {
   struct window *w, *tmp;
   struct swc_rectangle geometry;
+  int32_t step, step_x;
+  (void)data;
+  if (!scroll.timer)
+  {
+      //int32_t x, y;
+      //cursor_position(&x, &y);
+      //ipc_broadcast_cursor(chord.mode, x, y);
+      return 0;
+  }
+
+  /* keep replenishing scroll while a 3-finger gesture is held, even if
+   * fingers have stopped moving — only lift-off (gesture_active=false)
+   * actually stops it */
+
+  if (scroll.gesture_active)
+  {
+    scroll.pending_px -= (int32_t)scroll.gesture_vy;
+    scroll.pending_px_x -= (int32_t)scroll.gesture_vx;
+  }
+
   int32_t rem = scroll.pending_px;
   int32_t rem_x = scroll.pending_px_x;
-  int32_t step, step_x;
-
-  (void)data;
-
-  if (!scroll.timer) return 0;
-
-  if ((chord.mode != MODE_SCROLL && !scroll.auto_scrolling &&
-       chord.mode != MODE_MOVE) ||
-      (rem == 0 && rem_x == 0)) {
-    scroll_stop();
-    return 0;
-  }
 
   /* vertical step */
   step = rem / scrollease;
@@ -148,8 +162,17 @@ scroll_tick(void *data)
     swc_window_set_position(w->swc, geometry.x + step_x, geometry.y + step);
   }
 
+  if ((rem == 0 && rem_x == 0))
+  {
+    scroll_stop();
+    return 0;
+  }
+
   scroll.pending_px -= step;
   scroll.pending_px_x -= step_x;
+  scroll.total_pan_x -= step_x;  // sign matches whichever direction "content moves" vs "you move"
+  scroll.total_pan_y -= step;
+  ipc_broadcast_pan(scroll.total_pan_x, scroll.total_pan_y);   // Ω: IPC broadcast pan coordinates
   wl_event_source_timer_update(scroll.timer, timerms);
   return 0;
 }
@@ -159,9 +182,9 @@ scroll_drag_tick(void *data)
 {
   int32_t x, y;
   int32_t delta_x, delta_y;
+  int32_t screen_height = 0, screen_width = 0, screen_x = 0;
 
   (void)data;
-
   if (chord.mode != MODE_SCROLL) {
     return 0;
   }
@@ -171,24 +194,46 @@ scroll_drag_tick(void *data)
     return 0;
   }
 
+  if (compositor.current_screen) {
+    screen_height = compositor.current_screen->swc->geometry.height;
+    screen_width  = compositor.current_screen->swc->geometry.width;
+    screen_x      = compositor.current_screen->swc->geometry.x;
+  }
+
   delta_x = x - input.scroll_drag_last_x;
   delta_y = y - input.scroll_drag_last_y;
   input.scroll_drag_last_x = x;
   input.scroll_drag_last_y = y;
 
-  if (delta_x == 0 && delta_y == 0) {
-    wl_event_source_timer_update(input.scroll_drag_timer, timerms);
-    return 0;
+  bool moved = (delta_x != 0 || delta_y != 0);
+  if (moved) {
+    /* invert */
+    scroll.pending_px -= delta_y;
+    scroll.pending_px_x -= delta_x;
+
+    /* update cursor direction based on drag direction */
+    if (delta_y != 0) {
+      scroll.cursor_dir = delta_y > 0 ? 1 : -1;
+      update_mode_cursor();
+    }
   }
 
-  /* invert */
-  scroll.pending_px -= delta_y;
-  scroll.pending_px_x -= delta_x;
-
-  /* update cursor direction based on drag direction */
-  if (delta_y != 0) {
-    scroll.cursor_dir = delta_y > 0 ? 1 : -1;
-    update_mode_cursor();
+  /* NEW: edge-hold auto-scroll, same idea as move_scroll_tick's edge check —
+   * keeps scrolling continuously while the cursor sits pinned at a screen
+   * edge, instead of stalling once physical mouse movement runs out */
+  if (screen_height > 0) {
+    if (y < move_scroll_edge_threshold) {
+      scroll.pending_px += move_scroll_speed;
+    } else if (y > screen_height - move_scroll_edge_threshold) {
+      scroll.pending_px -= move_scroll_speed;
+    }
+  }
+  if (scroll_drag_mode && screen_width > 0) {
+    if (x < screen_x + move_scroll_edge_threshold) {
+      scroll.pending_px_x += move_scroll_speed;
+    } else if (x > screen_x + screen_width - move_scroll_edge_threshold) {
+      scroll.pending_px_x -= move_scroll_speed;
+    }
   }
 
   if (!scroll.timer)
