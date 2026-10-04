@@ -1,6 +1,6 @@
 hevel
 hevel.o
+result
 *.o
 *.a
 *.swp
-config.h

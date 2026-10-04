@@ -12,13 +12,13 @@ LDLIBS += `$(PKG_CONFIG) --libs $(PKGS)`
 
 SRC = config.h src/hevel.c src/input.c src/scroll.c src/select.c src/window.c src/zoom.c src/ipc.c
 
-all: hevel
+all: gwm
 
 config.h:
 	cp config.def.h $@
 
-hevel: $(SRC)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o hevel $(SRC) $(LDLIBS)
+gwm: $(SRC)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o gwm $(SRC) $(LDLIBS)
 
 clean:
 	rm -f hevel *.o
@@ -26,7 +26,7 @@ clean:
 confclean:
 	rm -f hevel *.o config.h
 
-install: hevel
-	install -D -m 755 hevel $(DESTDIR)$(BINDIR)/hevel
+install: gwm
+	install -D -m 755 gwm $(DESTDIR)$(BINDIR)/gwm
 
 .PHONY: clean install FORCE

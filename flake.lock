@@ -1,0 +1,93 @@
+{
+  "nodes": {
+    "neuswc-gwm": {
+      "inputs": {
+        "neuwld-gwm": "neuwld-gwm",
+        "nixpkgs": "nixpkgs_2"
+      },
+      "locked": {
+        "lastModified": 1791124265,
+        "narHash": "sha256-uPUhKJQgrAGGTOQ6sCHZ5lepJzUXhQMsKyvQ64UeKUA=",
+        "owner": "altaeder",
+        "repo": "neuswc-gwm",
+        "rev": "0ec424f61cc24e2a1367b58f2b2c17c58bc36112",
+        "type": "github"
+      },
+      "original": {
+        "owner": "altaeder",
+        "repo": "neuswc-gwm",
+        "type": "github"
+      }
+    },
+    "neuwld-gwm": {
+      "inputs": {
+        "nixpkgs": "nixpkgs"
+      },
+      "locked": {
+        "lastModified": 1791120819,
+        "narHash": "sha256-8mEQPjGsl7cUF4Snn2rfbFtwq34T7JS5kaSOmz1/0Oc=",
+        "owner": "altaeder",
+        "repo": "neuwld-gwm",
+        "rev": "ee63754f32591cc24c3ec7511a49c5cfbba9290d",
+        "type": "github"
+      },
+      "original": {
+        "owner": "altaeder",
+        "repo": "neuwld-gwm",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1790822859,
+        "narHash": "sha256-69xHQhAeMAD2wDXO7T2pcOZIF9Sga2W+JkmY2a11Ops=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "c59305bab2065cfecc4944690d9eedbb56f3a9fa",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs_2": {
+      "locked": {
+        "lastModified": 1791048980,
+        "narHash": "sha256-u3KCLxsnf1622GdFccg8hmkEIutOZ1h4pvia5ERjIuI=",
+        "rev": "a7868a727837f3c09cee2ce0ca671c76b1589fed",
+        "type": "tarball",
+        "url": "https://releases.nixos.org/nixos/unstable/nixos-26.11pre1084968.a7868a727837/nixexprs.tar.zst"
+      },
+      "original": {
+        "id": "nixpkgs",
+        "ref": "nixos-unstable",
+        "type": "indirect"
+      }
+    },
+    "nixpkgs_3": {
+      "locked": {
+        "lastModified": 1791048980,
+        "narHash": "sha256-u3KCLxsnf1622GdFccg8hmkEIutOZ1h4pvia5ERjIuI=",
+        "rev": "a7868a727837f3c09cee2ce0ca671c76b1589fed",
+        "type": "tarball",
+        "url": "https://releases.nixos.org/nixos/unstable/nixos-26.11pre1084968.a7868a727837/nixexprs.tar.zst"
+      },
+      "original": {
+        "id": "nixpkgs",
+        "ref": "nixos-unstable",
+        "type": "indirect"
+      }
+    },
+    "root": {
+      "inputs": {
+        "neuswc-gwm": "neuswc-gwm",
+        "nixpkgs": "nixpkgs_3"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
