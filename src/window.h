@@ -9,6 +9,9 @@ struct screen;
 void
 center_window(struct swc_window *swc);
 
+bool
+switch_to_window(unsigned long id);
+
 void
 focus_window(struct swc_window *swc);
 
@@ -29,5 +32,8 @@ void
 newwindow(struct swc_window *swc);
 void
 newscreen(struct swc_screen *swc);
+
+//struct window *
+//find_window_by_pid(pid_t pid);
 
 #endif

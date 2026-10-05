@@ -114,6 +114,42 @@ switch_window()
   }
 }
 
+bool
+switch_to_window(unsigned long id)
+{
+  struct window *w;
+
+  wl_list_for_each(w, &compositor.windows, link)
+  {
+    if (!w->swc)
+      continue;
+
+    if ((unsigned long)(uintptr_t)w->swc == id)
+    {
+      if (compositor.focused == w->swc)
+      {
+        center_window(w->swc);
+        return true;
+      }
+
+      if (compositor.focused)
+        swc_window_set_border(compositor.focused, inner_border_color_inactive,
+                              inner_border_width, outer_border_color_inactive,
+                              outer_border_width);
+
+        swc_window_set_border(w->swc, inner_border_color_active, inner_border_width,
+                              outer_border_color_active, outer_border_width);
+
+      swc_window_focus(w->swc);
+      compositor.focused = w->swc;
+      center_window(w->swc);
+      return true;
+    }
+  }
+
+  return false;
+}
+
 void
 focus_window(struct swc_window *swc)
              //Ωconst char *reason)
@@ -152,7 +188,8 @@ focus_window(struct swc_window *swc)
    * offscreen windows */
   if (focus_center == true && swc && compositor.current_screen &&
       (is_visible(compositor.focused, compositor.current_screen) ||
-       chord.mode == MODE_JUMP)) {
+       chord.mode == MODE_JUMP))
+  {
     struct swc_rectangle window_geom;
 
     if (swc_window_get_geometry(swc, &window_geom)) {

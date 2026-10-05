@@ -10,7 +10,7 @@ PKGS = swc
 CFLAGS += `$(PKG_CONFIG) --cflags $(PKGS)`
 LDLIBS += `$(PKG_CONFIG) --libs $(PKGS)`
 
-SRC = config.h src/hevel.c src/input.c src/scroll.c src/select.c src/window.c src/zoom.c src/ipc.c third_party/neuipc/ipc.c
+SRC = config.h src/hevel.c src/input.c src/scroll.c src/select.c src/window.c src/zoom.c src/control.c src/ipc.c third_party/neuipc/ipc.c
 
 all: gwm
 

@@ -8,7 +8,7 @@
 
 #include "hevel.h"
 #include "ipc.h"
-#include "neuipc.h"
+//#include "neuipc.h"
 // #include "input.h"
 #include <sys/socket.h>
 #include <sys/un.h>

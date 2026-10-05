@@ -11,6 +11,8 @@ struct swc_window;
 
 void ipc_init(struct wl_event_loop *evloop);
 
+void ipc_init(struct wl_event_loop *evloop);
+
 void ipc_broadcast_full(void);
 
 void ipc_broadcast_pan(int32_t x, int32_t y);

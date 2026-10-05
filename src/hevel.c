@@ -1,5 +1,6 @@
 #include "hevel.h"
 #include "ipc.h"   // near the other includes
+#include "control.h"
 #include <unistd.h>
 #include <stdlib.h>
 
@@ -141,6 +142,7 @@ static const char *appLaunch[] = {"qs", "ipc", "call", "launcher", "toggle", NUL
 static const char *runMenu[] = {"/home/tutter/GalleryShell/rofi", NULL};
 
 // System
+static const char *windowMap[] = {"qs", "ipc", "call", "system", "map", NULL};
 static const char *powerMenu[] = {"qs", "ipc", "call", "system", "powermenu", NULL};
 static const char *reloadQS[] = {"qs", "kill", "&", "wait", "&&", "qs", "-d", NULL};
 static const char *brightUp[] = {"brightnessctl", "s", "5%+", NULL};
@@ -218,6 +220,7 @@ main(void)
   }
 
   ipc_init(evloop);   // right after swc_initialize succeeds, before the main loop
+  control_init(evloop);
 
   maybe_enable_nein_cursor_theme();
 
@@ -230,9 +233,10 @@ main(void)
                   center, NULL);
   swc_add_binding(SWC_BINDING_KEY, SWC_MOD_LOGO, XKB_KEY_w,
                   kill_window, NULL);
+  //swc_add_binding(SWC_BINDING_KEY, SWC_MOD_LOGO, XKB_KEY_Tab,
+  //                switchWindow, NULL);
   swc_add_binding(SWC_BINDING_KEY, SWC_MOD_LOGO, XKB_KEY_Tab,
-                  switchWindow, NULL);
-
+                  &command, windowMap);
   // Druns
   swc_add_binding(SWC_BINDING_KEY, SWC_MOD_ANY, XKB_KEY_XF86Favorites,
                   &command, appLaunch);
