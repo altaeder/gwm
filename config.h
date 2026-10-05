@@ -26,8 +26,8 @@ static const uint32_t inner_border_color_inactive = 0xffb8894a;
 
 // Dark red
 
-static const uint32_t outer_border_color_inactive = 0xee792539;
-static const uint32_t inner_border_color_inactive = 0x90323232;
+//static const uint32_t outer_border_color_inactive = 0xee792539;
+//static const uint32_t inner_border_color_inactive = 0x90323232;
 
 
 // Dunno?
@@ -48,8 +48,8 @@ static const uint32_t inner_border_color_active = 0xff621e2e;
 */
 
 // Bright Red
-static const uint32_t outer_border_color_active = 0xffa0314b;
-static const uint32_t inner_border_color_active = 0xff792539;
+//static const uint32_t outer_border_color_active = 0xffa0314b;
+//static const uint32_t inner_border_color_active = 0xff792539;
 //static const uint32_t inner_border_color_active = 0x90792539;
 //static const uint32_t inner_border_color_active = 0xff39839d;
 
@@ -57,7 +57,7 @@ static const uint32_t inner_border_color_active = 0xff792539;
 static const uint32_t outer_border_width = 4;
 static const uint32_t inner_border_width = 4;
 
-static const uint32_t select_box_color = 0xffa0314b;
+//static const uint32_t select_box_color = 0xffa0314b;
 static const uint32_t select_box_border = 4;
 
 /* cursor themes:

@@ -18,6 +18,10 @@
 
 #define SOCKET_PATH "/tmp/gwm.sock"
 
+//uint32_t og_border_act_out = outer_border_color_active;
+//uint32_t og_border_act_in = inner_border_color_active;
+//uint32_t og_border_inact_out = outer_border_color_inactive;
+//uint32_t og_border_inact_in = inner_border_color_inactive;
 
 static struct window *
 find_window_by_pid(pid_t pid)
@@ -114,6 +118,108 @@ control_test(char **args, void *userdata)
 }
 
 static swc_ipc_status
+control_borders(char **args, void *userdata)
+{
+  swc_ipc_status status = {0};
+
+  if (!args[1])
+  {
+    status.ok = false;
+  	snprintf(status.msg, sizeof(status.msg), "\nSpecify borders.\nActive, inactive, or reset");
+  	return status;
+  }
+
+  if (strcmp(args[1], "reset") == 0)
+  {
+    status.ok = true;
+    outer_border_color_active = og_border_act_out;
+    inner_border_color_active = og_border_act_in;
+    outer_border_color_inactive = og_border_inact_out;
+    inner_border_color_inactive = og_border_inact_in;
+    select_box_color = og_select_color;
+
+    struct window *oborders;
+    wl_list_for_each(oborders, &compositor.windows, link)
+    {
+      if (!oborders->swc)
+        continue;
+
+      swc_window_set_border(oborders->swc, inner_border_color_inactive,
+                            inner_border_width, outer_border_color_inactive,
+                            outer_border_width);
+    }
+
+    swc_window_set_border(compositor.focused, inner_border_color_active,
+                          inner_border_width, outer_border_color_active,
+                          outer_border_width);
+
+  	snprintf(status.msg, sizeof(status.msg), "\nBorders reset to original colors (startup)");
+  	return status;
+  }
+
+  if (!args[2] || !args[3])
+  {
+    status.ok = false;
+  	snprintf(status.msg, sizeof(status.msg), "\nGIMME COLOR CODES\n[format: 0xff000000]");
+  	return status;
+  }
+
+  status.ok = true;
+
+  char *end1;
+  char *end2;
+  uint32_t color1 = strtoul(args[2], &end1, 0);
+  uint32_t color2 = strtoul(args[3], &end2, 0);
+
+  if (*end1 != '\0' || *end2 != '\0')
+  {
+    status.ok = false;
+  	snprintf(status.msg, sizeof(status.msg),
+	           "\nFailed to format color codes :(");
+  	return status;
+  }
+
+  if (strcmp(args[1], "active") == 0)
+  {
+    outer_border_color_active = color1;
+    inner_border_color_active = color2;
+    select_box_color = color1;
+  }
+  else if (strcmp(args[1], "inactive") == 0)
+  {
+    outer_border_color_inactive = color1;
+    inner_border_color_inactive = color2;
+  }
+  else
+  {
+    status.ok = false;
+    snprintf(status.msg, sizeof(status.msg),
+            "\nUnknown border type: %s", args[1]);
+    return status;
+  }
+
+  struct window *nborders;
+  wl_list_for_each(nborders, &compositor.windows, link)
+  {
+    if (!nborders->swc)
+      continue;
+
+    swc_window_set_border(nborders->swc, inner_border_color_inactive,
+                          inner_border_width, outer_border_color_inactive,
+                          outer_border_width);
+  }
+
+  swc_window_set_border(compositor.focused, inner_border_color_active,
+                        inner_border_width, outer_border_color_active,
+                        outer_border_width);
+
+	snprintf(status.msg, sizeof(status.msg),
+	         "\nChanged %s border-colors to 0x%08x, 0x%08x",
+	         args[1], color1, color2);
+  return status;
+}
+
+static swc_ipc_status
 control_windows(char **args, void *userdata)
 {
   swc_ipc_status status = {0};
@@ -125,7 +231,7 @@ control_windows(char **args, void *userdata)
             buf, bufsize,
             "Window information:");
 
-  if (n < 0 || (size_t)n >= bufsize)
+  if (written < 0 || (size_t)written >= bufsize)
   {
     status.ok = false;
     snprintf(status.msg, sizeof(status.msg), "failed to build window list");
@@ -252,6 +358,7 @@ control_init(struct wl_event_loop *evloop)
   swc_ipc_register("test", control_test, NULL);
   swc_ipc_register("focus", control_focus, NULL);
   swc_ipc_register("windows", control_windows, NULL);
+  swc_ipc_register("border", control_borders, NULL);
 
   wl_event_loop_add_fd(
     evloop,

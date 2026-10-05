@@ -43,6 +43,21 @@ typedef enum {
   MODE_FULLSCREEN,
 } chord_mode;
 
+
+extern uint32_t select_box_color;
+extern uint32_t og_select_color;
+//
+extern uint32_t outer_border_color_inactive;
+extern uint32_t inner_border_color_inactive;
+extern uint32_t outer_border_color_active;
+extern uint32_t inner_border_color_active;
+//
+extern uint32_t og_border_act_out;
+extern uint32_t og_border_act_in;
+extern uint32_t og_border_inact_out;
+extern uint32_t og_border_inact_in;
+
+
 struct window {
   struct swc_window *swc;
   struct wl_list link;

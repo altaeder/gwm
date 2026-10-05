@@ -11,6 +11,20 @@ struct scroll_state scroll = {0};
 struct zoom_state zoom = {0};
 struct sel_state sel = {0};
 
+// Border Colors
+uint32_t outer_border_color_active = 0xffa0314b;
+uint32_t inner_border_color_active = 0xff792539;
+uint32_t outer_border_color_inactive = 0xee792539;
+uint32_t inner_border_color_inactive = 0x90323232;
+
+uint32_t select_box_color = 0xffa0314b;
+uint32_t og_select_color = 0xffa0314b;
+
+uint32_t og_border_act_out = 0xffa0314b;
+uint32_t og_border_act_in = 0xff792539;
+uint32_t og_border_inact_out = 0xee792539;
+uint32_t og_border_inact_in = 0x90323232;
+
 /* TODO: clear this up
  * it does this because we modify this value from config
  * so it needs to be copied over, too lazy to change the name now */
