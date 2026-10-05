@@ -12,7 +12,7 @@ LDLIBS += `$(PKG_CONFIG) --libs $(PKGS)`
 
 SRC = config.h src/hevel.c src/input.c src/scroll.c src/select.c src/window.c src/zoom.c src/control.c src/ipc.c third_party/neuipc/ipc.c
 
-all: gwm
+all: gwm gc
 
 config.h:
 	cp config.def.h $@
@@ -20,13 +20,17 @@ config.h:
 gwm: $(SRC)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o gwm $(SRC) $(LDLIBS)
 
+gc: src/galleryControl.c
+	$(CC) -Wall -Wextra -pedantic -o gc src/galleryControl.c -lm
+
 clean:
-	rm -f hevel *.o
+	rm -f gwm gc *.o
 
 confclean:
-	rm -f hevel *.o config.h
+	rm -f gwm gc *.o config.h
 
-install: gwm
+install: gwm gc
 	install -D -m 755 gwm $(DESTDIR)$(BINDIR)/gwm
+	install -D -m 755 gc $(DESTDIR)$(BINDIR)/gc
 
 .PHONY: clean install FORCE
