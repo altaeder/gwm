@@ -217,13 +217,13 @@ kill_window(void *data, uint32_t time, uint32_t value, uint32_t state)
 /////////////////////////////
 
 // Drun-likes
-static const char *appLaunch[] = {"qs", "ipc", "call", "launcher", "toggle", NULL};
+static const char *appLaunch[] = {"qs", "-n", "ipc", "call", "launcher", "toggle", NULL};
 static const char *runMenu[] = {"/home/tutter/GalleryShell/rofi", NULL};
 
 // System
-static const char *windowMap[] = {"qs", "ipc", "call", "system", "map", NULL};
-static const char *powerMenu[] = {"qs", "ipc", "call", "system", "powermenu", NULL};
-static const char *reloadQS[] = {"qs", "kill", "&", "wait", "&&", "qs", "-d", NULL};
+static const char *windowMap[] = {"qs", "-n", "ipc", "call", "system", "map", NULL};
+static const char *powerMenu[] = {"qs", "-n", "ipc", "call", "system", "powermenu", NULL};
+static const char *reloadQS[] = {"qs", "-d", "-n", NULL};
 static const char *brightUp[] = {"brightnessctl", "s", "5%+", NULL};
 static const char *brightDown[] = {"brightnessctl", "s", "5%-", NULL};
 static const char *soundUp[] = {"wpctl", "set-volume", "@DEFAULT_SINK@", "3.3%+", "--limit", "1.0", NULL};
@@ -246,7 +246,7 @@ static const char *sign[] = {"/home/tutter/GalleryShell/sign", NULL};
 static const char *saveWallGen[] = {"/home/tutter/GalleryShell/wall", NULL};
 
 // Autostarts
-static const char *quickshell[] = {"qs", "-d", NULL};
+static const char *quickshell[] = {"qs", "-d", "-n", NULL};
 
 static void
 command(void *data, uint32_t time, uint32_t value, uint32_t state)
@@ -386,17 +386,19 @@ main(void)
   signal(SIGINT, sig);
 
 
-  char* qsArgs[] = {"qs", "-d", NULL};
-
+  // ----------- Autostarts ----------- //
+  char* qsArgs[] = {"qs", "-d", "-n", NULL};
   if (fork() == 0)
   {
     execvp("qs", qsArgs);
   }
 
+  char* startArgs[] = {"/home/tutter/hevel-start", NULL};
   if (fork() == 0)
   {
-    execvp("/home/tutter/hevel-start", NULL);
+    execvp("/home/tutter/hevel-start", startArgs);
   }
+  // ----------- Autostarts ----------- //
 
   wl_display_run(compositor.display);
 
