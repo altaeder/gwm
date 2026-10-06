@@ -219,6 +219,39 @@ control_borders(char **args, void *userdata)
   return status;
 }
 
+
+static swc_ipc_status
+control_cursor(char **args, void *userdata)
+{
+  swc_ipc_status status = {0};
+
+  if (!args[1])
+  {
+    status.ok = false;
+  	snprintf(status.msg, sizeof(status.msg), "\nGIMME COLOR CODE");
+  	return status;
+  }
+
+  char *end;
+  uint32_t color = strtoul(args[1], &end, 0);
+
+  if (*end != '\0')
+  {
+    status.ok = false;
+  	snprintf(status.msg, sizeof(status.msg),
+	           "\nFailed to format color code :(");
+  	return status;
+  }
+  cursor_outline = color;
+  reload_nein_cursor();
+
+	snprintf(status.msg, sizeof(status.msg),
+	         "\nChanged mouse outline to 0x%08x",
+	         color);
+  return status;
+}
+
+
 static swc_ipc_status
 control_windows(char **args, void *userdata)
 {
@@ -359,6 +392,7 @@ control_init(struct wl_event_loop *evloop)
   swc_ipc_register("focus", control_focus, NULL);
   swc_ipc_register("windows", control_windows, NULL);
   swc_ipc_register("border", control_borders, NULL);
+  swc_ipc_register("cursor", control_cursor, NULL);
 
   wl_event_loop_add_fd(
     evloop,

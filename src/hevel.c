@@ -11,14 +11,24 @@ struct scroll_state scroll = {0};
 struct zoom_state zoom = {0};
 struct sel_state sel = {0};
 
-// Border Colors
+// -------------- Colors ------------------- //
+// Borders
 uint32_t outer_border_color_active = 0xffa0314b;
 uint32_t inner_border_color_active = 0xff792539;
 uint32_t outer_border_color_inactive = 0xee792539;
 uint32_t inner_border_color_inactive = 0x90323232;
 
+// Select Box
 uint32_t select_box_color = 0xffa0314b;
+static uint32_t *nein_cursor_runtime;
+
+// Cursor
+uint32_t cursor_outline = 0xffa0314b;
+
+// Og states
 uint32_t og_select_color = 0xffa0314b;
+
+uint32_t og_cursor_outline = 0xffa0314b;
 
 uint32_t og_border_act_out = 0xffa0314b;
 uint32_t og_border_act_in = 0xff792539;
@@ -29,6 +39,62 @@ uint32_t og_border_inact_in = 0x90323232;
  * it does this because we modify this value from config
  * so it needs to be copied over, too lazy to change the name now */
 bool focus_center = center_focus;
+
+// Dynamic Cursor runtime helper
+static void
+recolor_nein_cursor(void)
+{
+  size_t pixels = sizeof(nein_cursor_data) / sizeof(nein_cursor_data[0]);
+
+  for (size_t i = 0; i < pixels; i++)
+  {
+    if (nein_cursor_data[i] == 0xffa0314b)
+        nein_cursor_runtime[i] = cursor_outline;
+    else
+        nein_cursor_runtime[i] = nein_cursor_data[i];
+  }
+}
+
+void
+reload_nein_cursor(void)
+{
+    recolor_nein_cursor();
+
+    const struct nein_cursor_meta *arrow =
+        &nein_cursor_metadata[NEIN_CURSOR_WHITEARROW];
+    const struct nein_cursor_meta *box =
+        &nein_cursor_metadata[NEIN_CURSOR_BOXCURSOR];
+    const struct nein_cursor_meta *cross =
+        &nein_cursor_metadata[NEIN_CURSOR_CROSSCURSOR];
+    const struct nein_cursor_meta *sight =
+        &nein_cursor_metadata[NEIN_CURSOR_SIGHTCURSOR];
+
+    swc_set_cursor_image(
+        SWC_CURSOR_DEFAULT,
+        &nein_cursor_runtime[arrow->offset],
+        arrow->width, arrow->height,
+        arrow->hotspot_x, arrow->hotspot_y);
+
+    swc_set_cursor_image(
+        SWC_CURSOR_BOX,
+        &nein_cursor_runtime[box->offset],
+        box->width, box->height,
+        box->hotspot_x, box->hotspot_y);
+
+    swc_set_cursor_image(
+        SWC_CURSOR_CROSS,
+        &nein_cursor_runtime[cross->offset],
+        cross->width, cross->height,
+        cross->hotspot_x, cross->hotspot_y);
+
+    swc_set_cursor_image(
+        SWC_CURSOR_SIGHT,
+        &nein_cursor_runtime[sight->offset],
+        sight->width, sight->height,
+        sight->hotspot_x, sight->hotspot_y);
+
+    update_mode_cursor();
+}
 
 static void
 maybe_enable_nein_cursor_theme(void)
@@ -44,27 +110,16 @@ maybe_enable_nein_cursor_theme(void)
   const struct nein_cursor_meta *up = &nein_cursor_metadata[NEIN_CURSOR_T];
   const struct nein_cursor_meta *down = &nein_cursor_metadata[NEIN_CURSOR_B];
 
-  if (!cursor_theme || strcmp(cursor_theme, "nein") != 0) return;
+  nein_cursor_runtime = malloc(sizeof(nein_cursor_data));
 
-  swc_set_cursor_mode(SWC_CURSOR_MODE_COMPOSITOR);
-  swc_set_cursor_image(SWC_CURSOR_DEFAULT, &nein_cursor_data[arrow->offset],
-                       arrow->width, arrow->height, arrow->hotspot_x,
-                       arrow->hotspot_y);
-  swc_set_cursor_image(SWC_CURSOR_BOX, &nein_cursor_data[box->offset],
-                       box->width, box->height, box->hotspot_x, box->hotspot_y);
-  swc_set_cursor_image(SWC_CURSOR_CROSS, &nein_cursor_data[cross->offset],
-                       cross->width, cross->height, cross->hotspot_x,
-                       cross->hotspot_y);
-  swc_set_cursor_image(SWC_CURSOR_SIGHT, &nein_cursor_data[sight->offset],
-                       sight->width, sight->height, sight->hotspot_x,
-                       sight->hotspot_y);
-  swc_set_cursor_image(SWC_CURSOR_UP, &null_cursor_data[up->offset], up->width, // Ω NEIN set to NULL Ω
-                       up->height, up->hotspot_x, up->hotspot_y);
-  swc_set_cursor_image(SWC_CURSOR_DOWN, &null_cursor_data[down->offset],
-                       down->width, down->height, down->hotspot_x,
-                       down->hotspot_y);
+  if (!nein_cursor_runtime)
+  {
+    fprintf(stderr, "failed to allocate dynamic cursor buffer\n");
+    return;
+  }
 
-  update_mode_cursor();
+  //recolor_nein_cursor();
+  reload_nein_cursor();
 }
 
 static void
