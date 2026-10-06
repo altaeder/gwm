@@ -18,23 +18,6 @@
 
 #define SOCKET_PATH "/tmp/gwm.sock"
 
-//uint32_t og_border_act_out = outer_border_color_active;
-//uint32_t og_border_act_in = inner_border_color_active;
-//uint32_t og_border_inact_out = outer_border_color_inactive;
-//uint32_t og_border_inact_in = inner_border_color_inactive;
-
-static struct window *
-find_window_by_pid(pid_t pid)
-{
-  struct window *w;
-
-  wl_list_for_each(w, &compositor.windows, link)
-  {
-    if (w->pid == pid) return w;
-  }
-  return NULL;
-}
-
 static int
 json_escape_string(char *dst, size_t size, const char *src)
 {
@@ -106,6 +89,54 @@ control_socket_event(int fd, uint32_t mask, void *data)
 {
   swc_ipc_dispatch();
   return 0;
+}
+
+static swc_ipc_status
+control_kill(char **args, void *userdata)
+{
+  swc_ipc_status status = {0};
+
+  if (!args[1])
+  {
+    status.ok = false;
+  	snprintf(status.msg, sizeof(status.msg), "\nSpecify window-id to kill");
+  	return status;
+  }
+
+  char *end;
+  unsigned long window_id = strtoul(args[1], &end, 10);
+
+  if (*end != '\0')
+  {
+    status.ok = false;
+  	snprintf(status.msg, sizeof(status.msg), "\ninvalid window id");
+  	return status;
+  }
+
+  struct window *w;
+  wl_list_for_each(w, &compositor.windows, link)
+  {
+    if (!w->swc)
+      continue;
+
+    if ((unsigned long)(uintptr_t)w->swc == window_id)
+    {
+      swc_window_close(w->swc);
+      status.ok = true;
+      snprintf(
+        status.msg,
+        sizeof(status.msg),
+        "\nTerminated window: %lu",
+        window_id);
+      return status;
+    }
+    else
+    {
+      status.ok = false;
+    	snprintf(status.msg, sizeof(status.msg), "\nfailed to locate & terminate window\nid: %lu\n", window_id);
+      return status;
+    }
+  }
 }
 
 static swc_ipc_status
@@ -390,6 +421,7 @@ control_init(struct wl_event_loop *evloop)
 
   swc_ipc_register("test", control_test, NULL);
   swc_ipc_register("focus", control_focus, NULL);
+  swc_ipc_register("kill", control_kill, NULL);
   swc_ipc_register("windows", control_windows, NULL);
   swc_ipc_register("border", control_borders, NULL);
   swc_ipc_register("cursor", control_cursor, NULL);

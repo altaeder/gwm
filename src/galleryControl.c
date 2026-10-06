@@ -84,7 +84,9 @@ usage(const char *argv0)
 	fprintf(stderr, "\nexamples:\n");
 	fprintf(stderr, "  %s test\n", argv0);
 	fprintf(stderr, "  %s focus [window-id]\n", argv0);
-	fprintf(stderr, "  %s windows\n", argv0);
+	fprintf(stderr, "  %s kill [window-id]\n", argv0);
+	fprintf(stderr, "  %s borders [type] [0xffcolor1] [0xff123123] \n", argv0);
+	fprintf(stderr, "  %s cursor [0xffcolorc] \n", argv0);
 }
 
 int
