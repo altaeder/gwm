@@ -68,7 +68,7 @@
           makeWrapper \
             ${neuswc-gwm.packages.${system}.default}/bin/swc-launch \
             $out/bin/gwm-launch \
-            --add-flags "$out/bin/gwm"
+            --add-flags "$out/bin/GalleryWM"
         '';
       };
 

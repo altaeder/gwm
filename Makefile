@@ -18,7 +18,7 @@ config.h:
 	cp config.def.h $@
 
 gwm: $(SRC)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o gwm $(SRC) $(LDLIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o GalleryWM $(SRC) $(LDLIBS)
 
 gc: src/galleryControl.c
 	$(CC) -Wall -Wextra -pedantic -o gc src/galleryControl.c -lm
@@ -30,7 +30,7 @@ confclean:
 	rm -f gwm gc *.o config.h
 
 install: gwm gc
-	install -D -m 755 gwm $(DESTDIR)$(BINDIR)/gwm
+	install -D -m 755 GalleryWM $(DESTDIR)$(BINDIR)/GalleryWM
 	install -D -m 755 gc $(DESTDIR)$(BINDIR)/gc
 
 .PHONY: clean install FORCE
