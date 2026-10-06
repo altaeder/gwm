@@ -25,6 +25,7 @@
 
 #include "../config.h"
 #include "nein_cursor.h"
+#include "null_cursor.h"
 
 #include "input.h"
 #include "scroll.h"

@@ -68,6 +68,14 @@ reload_nein_cursor(void)
         &nein_cursor_metadata[NEIN_CURSOR_CROSSCURSOR];
     const struct nein_cursor_meta *sight =
         &nein_cursor_metadata[NEIN_CURSOR_SIGHTCURSOR];
+    const struct null_cursor_meta *up = &null_cursor_metadata[NULL_CURSOR_WHITEARROW];
+    const struct null_cursor_meta *down = &null_cursor_metadata[NULL_CURSOR_WHITEARROW];
+
+    swc_set_cursor_image(
+        SWC_CURSOR_DOWN,
+        &null_cursor_data[down->offset],
+        arrow->width, arrow->height,
+        arrow->hotspot_x, arrow->hotspot_y);
 
     swc_set_cursor_image(
         SWC_CURSOR_DEFAULT,
@@ -107,10 +115,12 @@ maybe_enable_nein_cursor_theme(void)
       &nein_cursor_metadata[NEIN_CURSOR_CROSSCURSOR];
   const struct nein_cursor_meta *sight =
       &nein_cursor_metadata[NEIN_CURSOR_SIGHTCURSOR];
-  const struct nein_cursor_meta *up = &nein_cursor_metadata[NEIN_CURSOR_T];
-  const struct nein_cursor_meta *down = &nein_cursor_metadata[NEIN_CURSOR_B];
+  const struct null_cursor_meta *up = &null_cursor_metadata[NULL_CURSOR_WHITEARROW];
+  const struct null_cursor_meta *down = &null_cursor_metadata[NULL_CURSOR_WHITEARROW];
 
   nein_cursor_runtime = malloc(sizeof(nein_cursor_data));
+
+  swc_set_cursor_mode(SWC_CURSOR_MODE_COMPOSITOR); // CRUCIAL
 
   if (!nein_cursor_runtime)
   {

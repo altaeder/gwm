@@ -3,15 +3,15 @@
 #include <stdint.h>
 
 enum {
-  NEIN_CURSOR_WHITEARROW = 0,
-  NEIN_CURSOR_BOXCURSOR = 1,
-  NEIN_CURSOR_CROSSCURSOR = 2,
-  NEIN_CURSOR_SIGHTCURSOR = 3,
-  NEIN_CURSOR_T = 4,
-  NEIN_CURSOR_B = 5,
+  NULL_CURSOR_WHITEARROW = 0,
+  NULL_CURSOR_BOXCURSOR = 1,
+  NULL_CURSOR_CROSSCURSOR = 2,
+  NULL_CURSOR_SIGHTCURSOR = 3,
+  NULL_CURSOR_T = 4,
+  NULL_CURSOR_B = 5,
 };
 
-static const uint32_t nein_cursor_data[] = {
+static const uint32_t null_cursor_data[] = {
     0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
     0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
     0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
@@ -238,13 +238,13 @@ static const uint32_t nein_cursor_data[] = {
     0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
 };
 
-struct nein_cursor_meta {
+struct null_cursor_meta {
   uint32_t width, height;
   int32_t hotspot_x, hotspot_y;
   size_t offset;
 };
 
-static const struct nein_cursor_meta nein_cursor_metadata[] = {
+static const struct null_cursor_meta null_cursor_metadata[] = {
     {16, 16, 0, 0, 0},    /* whitearrow */
     {16, 16, 7, 7, 256},  /* boxcursor */
     {16, 16, 7, 7, 512},  /* crosscursor */
