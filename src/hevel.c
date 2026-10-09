@@ -387,6 +387,12 @@ main(void)
 
 
   // ----------- Autostarts ----------- //
+  char* initArgs[] = {"/home/tutter/gwm-init", NULL};
+  if (fork() == 0)
+  {
+    execvp("/home/tutter/gwm-init", initArgs);
+  }
+
   char* qsArgs[] = {"qs", "-d", "-n", NULL};
   if (fork() == 0)
   {
