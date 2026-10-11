@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+GWM_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+DEV_DIR="$(dirname "$GWM_DIR")"
+
+exec nix build "$GWM_DIR#default" \
+  --override-input neuswc-gwm \
+    "path:$DEV_DIR/neuswc-gwm" \
+  --override-input neuswc-gwm/neuwld-gwm \
+    "path:$DEV_DIR/neuwld-gwm" \
+  "$@"
