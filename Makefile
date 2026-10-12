@@ -10,26 +10,26 @@ PKGS = swc
 CFLAGS += `$(PKG_CONFIG) --cflags $(PKGS)`
 LDLIBS += `$(PKG_CONFIG) --libs $(PKGS)`
 
-SRC = config.h src/hevel.c src/input.c src/scroll.c src/select.c src/window.c src/zoom.c src/control.c src/ipc.c third_party/neuipc/ipc.c
+SRC = config.h src/gallery.c src/input.c src/scroll.c src/select.c src/window.c src/zoom.c src/control.c src/ipc.c third_party/neuipc/ipc.c
 
-all: gwm gc
+all: GalleryWM gc
 
 config.h:
 	cp config.def.h $@
 
-gwm: $(SRC)
+GalleryWM: $(SRC)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o GalleryWM $(SRC) $(LDLIBS)
 
 gc: src/galleryControl.c
 	$(CC) -Wall -Wextra -pedantic -o gc src/galleryControl.c -lm
 
 clean:
-	rm -f gwm gc *.o
+	rm -f GalleryWM gc *.o
 
 confclean:
-	rm -f gwm gc *.o config.h
+	rm -f GalleryWM gc *.o config.h
 
-install: gwm gc
+install: GalleryWM gc
 	install -D -m 755 GalleryWM $(DESTDIR)$(BINDIR)/GalleryWM
 	install -D -m 755 gc $(DESTDIR)$(BINDIR)/gc
 

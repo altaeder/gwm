@@ -23,8 +23,8 @@
     {
       packages.${system}.default = pkgs.stdenv.mkDerivation
       {
-        pname = "gwm";
-        version = "0.0";
+        pname = "GalleryWM";
+        version = "0.01";
 
         src = self;
 

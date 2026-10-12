@@ -1,5 +1,5 @@
 #include "select.h"
-#include "hevel.h"
+#include "gallery.h"
 #include "input.h"
 
 int

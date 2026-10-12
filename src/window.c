@@ -1,5 +1,5 @@
 #include "window.h"
-#include "hevel.h"
+#include "gallery.h"
 #include "input.h"
 #include "scroll.h"
 #include "zoom.h"

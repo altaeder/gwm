@@ -1,4 +1,4 @@
-#include "hevel.h"
+#include "gallery.h"
 #include "ipc.h"   // near the other includes
 #include "control.h"
 #include <unistd.h>
@@ -145,8 +145,6 @@ static const struct swc_manager manager = {
 };
 
 
-
-// ----------------------------------- Hotkey functions
 static void
 quit(void *data, uint32_t time, uint32_t value, uint32_t state)
 {
@@ -157,10 +155,21 @@ quit(void *data, uint32_t time, uint32_t value, uint32_t state)
   {
     return;
   }
-  //wl_display_terminate(compositor.display);
+
+  char* qs_quit[] = {"qs", "kill", NULL};
+
+  if (fork() == 0)
+  {
+    execvp("qs", qs_quit);
+    exit(EXIT_FAILURE);
+  }
+
+  wl_display_terminate(compositor.display);
   swc_finalize();
 }
 
+
+// ----------------------------------- Hotkey functions
 static void
 center(void *data, uint32_t time, uint32_t value, uint32_t state)
 {
@@ -391,18 +400,21 @@ main(void)
   if (fork() == 0)
   {
     execvp("/home/tutter/gwm-init", initArgs);
+    exit(EXIT_FAILURE);
   }
 
   char* qsArgs[] = {"qs", "-d", "-n", NULL};
   if (fork() == 0)
   {
     execvp("qs", qsArgs);
+    exit(EXIT_FAILURE);
   }
 
-  char* startArgs[] = {"/home/tutter/hevel-start", NULL};
+  char* startArgs[] = {"/home/tutter/gwm-start", NULL};
   if (fork() == 0)
   {
-    execvp("/home/tutter/hevel-start", startArgs);
+    execvp("/home/tutter/gwm-start", startArgs);
+    exit(EXIT_FAILURE);
   }
   // ----------- Autostarts ----------- //
 

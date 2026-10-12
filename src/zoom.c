@@ -1,5 +1,5 @@
 #include "zoom.h"
-#include "hevel.h"
+#include "gallery.h"
 
 int
 zoom_tick(void *data)

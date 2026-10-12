@@ -6,7 +6,7 @@
   ## § ------------------------------------------ § ##
   \*################################################*/
 
-#include "hevel.h"
+#include "gallery.h"
 #include "ipc.h"
 //#include "neuipc.h"
 // #include "input.h"
@@ -609,7 +609,7 @@ ipc_init(struct wl_event_loop *evloop)
   struct sockaddr_un addr = {0};
   char path[108];
   const char *runtime = getenv("XDG_RUNTIME_DIR");
-  snprintf(path, sizeof(path), "%s/hevel.sock", runtime ? runtime : "/tmp");
+  snprintf(path, sizeof(path), "%s/gwm-stream.sock", runtime ? runtime : "/tmp");
   unlink(path);
 
   listen_fd = socket(AF_UNIX, SOCK_STREAM, 0);
