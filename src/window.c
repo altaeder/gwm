@@ -4,6 +4,7 @@
 #include "scroll.h"
 #include "zoom.h"
 #include "ipc.h"
+#include "decor.h"
 //#include <unistd.h>
 
 static pid_t
@@ -106,6 +107,8 @@ switch_window()
     compositor.focused = closest->swc;
   }
 
+  apply_decor(compositor.focused, true);
+
   if (compositor.focused)
   {
     swc_window_stack(compositor.focused, -1); // Ω force layer to top!
@@ -182,6 +185,7 @@ focus_window(struct swc_window *swc)
 
   swc_window_focus(swc);
   compositor.focused = swc;
+  apply_decor(compositor.focused, true);
   //ipc_broadcast_window_add(swc);
   /* center the focused window: both axes in drag mode, vertical only in scroll
    * wheel mode, only when visible or jumping to it, else you can center
@@ -331,6 +335,7 @@ windowtitlechanged(void *data)
 {
   struct window *w = data;
 
+  apply_decor(compositor.focused, true);
   ipc_broadcast_full();
   ipc_broadcast_window_title(w->swc); //Ω IPC call, update window title
   //ipc_broadcast_window_change(w->swc);
@@ -426,7 +431,6 @@ newwindow(struct swc_window *swc)
 
   swc_window_show(swc);
   focus_window(swc);
-
   /*if (!is_select)
   {
     center_window(swc);

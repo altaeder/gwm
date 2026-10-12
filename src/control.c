@@ -13,6 +13,7 @@
 #include <string.h>
 
 #include "gallery.h"
+#include "decor.h"
 #include "window.h"
 #include "neuipc.h"
 
@@ -89,6 +90,17 @@ control_socket_event(int fd, uint32_t mask, void *data)
 {
   swc_ipc_dispatch();
   return 0;
+}
+
+
+static swc_ipc_status
+control_decor(char **args, void *userdata)
+{
+  swc_ipc_status status = {0};
+  status.ok = true;
+	snprintf(status.msg, sizeof(status.msg), "vi prøver");
+	apply_decor(compositor.focused, true);
+  return status;
 }
 
 static swc_ipc_status
@@ -275,6 +287,7 @@ control_cursor(char **args, void *userdata)
   }
   cursor_outline = color;
   reload_nein_cursor();
+  apply_decor(compositor.focused, true);
 
 	snprintf(status.msg, sizeof(status.msg),
 	         "\nChanged mouse outline to 0x%08x",
@@ -394,6 +407,7 @@ control_focus(char **args, void *userdata)
 
   if (switch_to_window(window_id))
   {
+    apply_decor(compositor.focused, true);
     status.ok = true;
     snprintf(
       status.msg,
@@ -425,6 +439,7 @@ control_init(struct wl_event_loop *evloop)
   swc_ipc_register("windows", control_windows, NULL);
   swc_ipc_register("border", control_borders, NULL);
   swc_ipc_register("cursor", control_cursor, NULL);
+  swc_ipc_register("decor", control_decor, NULL);
 
   wl_event_loop_add_fd(
     evloop,
