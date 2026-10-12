@@ -1,5 +1,5 @@
 #include "src/gallery.h"
-#include "src/ipc.h"   // near the other includes
+#include "src/ipc.h"
 #include "src/control.h"
 #include <unistd.h>
 #include <stdlib.h>
