@@ -1,7 +1,5 @@
 #include "gallery.h"
 #include "decor.h"
-#include "parts.h"
-#include "inactiveparts.h"
 
 #include "stdint.h"
 #include "swc.h"
