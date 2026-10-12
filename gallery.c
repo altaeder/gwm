@@ -1,6 +1,6 @@
-#include "gallery.h"
-#include "ipc.h"   // near the other includes
-#include "control.h"
+#include "src/gallery.h"
+#include "src/ipc.h"   // near the other includes
+#include "src/control.h"
 #include <unistd.h>
 #include <stdlib.h>
 
@@ -144,31 +144,6 @@ static const struct swc_manager manager = {
     .new_device = newdevice,
 };
 
-
-static void
-quit(void *data, uint32_t time, uint32_t value, uint32_t state)
-{
-  (void)data;
-  (void)time;
-  (void)value;
-  if (state != WL_KEYBOARD_KEY_STATE_PRESSED)
-  {
-    return;
-  }
-
-  char* qs_quit[] = {"qs", "kill", NULL};
-
-  if (fork() == 0)
-  {
-    execvp("qs", qs_quit);
-    exit(EXIT_FAILURE);
-  }
-
-  wl_display_terminate(compositor.display);
-  swc_finalize();
-}
-
-
 // ----------------------------------- Hotkey functions
 static void
 center(void *data, uint32_t time, uint32_t value, uint32_t state)
@@ -277,10 +252,33 @@ command(void *data, uint32_t time, uint32_t value, uint32_t state)
 // ------------------------------------
 
 static void
+quit(void *data, uint32_t time, uint32_t value, uint32_t state)
+{
+  (void)data;
+  (void)time;
+  (void)value;
+  if (state != WL_KEYBOARD_KEY_STATE_PRESSED)
+  {
+    return;
+  }
+
+  char* qs_quit[] = {"pkill", "quickshell", NULL};
+
+  if (fork() == 0)
+  {
+    execvp("pkill", qs_quit);
+    exit(EXIT_FAILURE);
+  }
+
+  wl_display_terminate(compositor.display);
+}
+
+
+static void
 sig(int s)
 {
   (void)s;
-  wl_display_terminate(compositor.display);
+  quit(NULL, 0, 0, 1);
 }
 
 int
@@ -403,7 +401,7 @@ main(void)
     exit(EXIT_FAILURE);
   }
 
-  char* qsArgs[] = {"qs", "-d", "-n", NULL};
+  char* qsArgs[] = {"qs", NULL};
   if (fork() == 0)
   {
     execvp("qs", qsArgs);
@@ -420,8 +418,8 @@ main(void)
 
   wl_display_run(compositor.display);
 
-  swc_finalize();
   wl_display_destroy(compositor.display);
+  swc_finalize();
 
   return 0;
 }
