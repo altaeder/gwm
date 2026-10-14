@@ -319,9 +319,9 @@ main(void)
                   center, NULL);
   swc_add_binding(SWC_BINDING_KEY, SWC_MOD_LOGO, XKB_KEY_w,
                   kill_window, NULL);
-  //swc_add_binding(SWC_BINDING_KEY, SWC_MOD_LOGO, XKB_KEY_Tab,
-  //                switchWindow, NULL);
   swc_add_binding(SWC_BINDING_KEY, SWC_MOD_LOGO, XKB_KEY_Tab,
+                  switchWindow, NULL);
+  swc_add_binding(SWC_BINDING_KEY, SWC_MOD_LOGO, XKB_KEY_space,
                   &command, windowMap);
   // Druns
   swc_add_binding(SWC_BINDING_KEY, SWC_MOD_ANY, XKB_KEY_XF86Favorites,
