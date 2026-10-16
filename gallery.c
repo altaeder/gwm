@@ -12,6 +12,11 @@ struct zoom_state zoom = {0};
 struct sel_state sel = {0};
 
 // -------------- Colors ------------------- //
+#define COLOR1 0xffa0314b
+#define COLOR2 0xff792539
+#define COLOR3 0xee792539
+#define COLOR4 0x90323232
+
 // Borders
 uint32_t outer_border_color_active = 0xffa0314b;
 uint32_t inner_border_color_active = 0xff792539;
@@ -26,14 +31,14 @@ static uint32_t *nein_cursor_runtime;
 uint32_t cursor_outline = 0xffa0314b;
 
 // Og states
-uint32_t og_select_color = 0xffa0314b;
+uint32_t og_select_color = COLOR1; //0xffa0314b;
 
-uint32_t og_cursor_outline = 0xffa0314b;
+uint32_t og_cursor_outline = COLOR1; //0xffa0314b;
 
-uint32_t og_border_act_out = 0xffa0314b;
-uint32_t og_border_act_in = 0xff792539;
-uint32_t og_border_inact_out = 0xee792539;
-uint32_t og_border_inact_in = 0x90323232;
+uint32_t og_border_act_out = COLOR1; //0xffa0314b;
+uint32_t og_border_act_in = COLOR2; //0xff792539;
+uint32_t og_border_inact_out = COLOR3; //0xee792539;
+uint32_t og_border_inact_in = COLOR4; //0x90323232;
 
 /* TODO: clear this up
  * it does this because we modify this value from config

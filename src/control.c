@@ -160,15 +160,16 @@ control_test(char **args, void *userdata)
   return status;
 }
 
+
 static swc_ipc_status
-control_borders(char **args, void *userdata)
+control_colors(char **args, void *userdata)
 {
   swc_ipc_status status = {0};
 
   if (!args[1])
   {
     status.ok = false;
-  	snprintf(status.msg, sizeof(status.msg), "\nSpecify borders.\nActive, inactive, or reset");
+  	snprintf(status.msg, sizeof(status.msg), "\nSpecify.\n all, or reset");
   	return status;
   }
 
@@ -180,6 +181,7 @@ control_borders(char **args, void *userdata)
     outer_border_color_inactive = og_border_inact_out;
     inner_border_color_inactive = og_border_inact_in;
     select_box_color = og_select_color;
+    cursor_outline = og_cursor_outline;
 
     struct window *oborders;
     wl_list_for_each(oborders, &compositor.windows, link)
@@ -196,7 +198,84 @@ control_borders(char **args, void *userdata)
                           inner_border_width, outer_border_color_active,
                           outer_border_width);
 
+    reload_nein_cursor();
+    apply_decor(compositor.focused, true);
+
   	snprintf(status.msg, sizeof(status.msg), "\nBorders reset to original colors (startup)");
+  	return status;
+  }
+
+  if (!args[2] || !args[3] || !args[4] || !args[5])
+  {
+    status.ok = false;
+  	snprintf(status.msg, sizeof(status.msg), "\nGIMME COLOR CODES\n[format: 0xff000000]");
+  	return status;
+  }
+
+  status.ok = true;
+
+  char *end1;
+  char *end2;
+  char *end3;
+  char *end4;
+  uint32_t color1 = strtoul(args[2], &end1, 0);
+  uint32_t color2 = strtoul(args[3], &end2, 0);
+  uint32_t color3 = strtoul(args[4], &end3, 0);
+  uint32_t color4 = strtoul(args[5], &end4, 0);
+
+  if (*end1 != '\0' || *end2 != '\0' || *end3 != '\0' || *end4 != '\0')
+  {
+    status.ok = false;
+  	snprintf(status.msg, sizeof(status.msg),
+	           "\nFailed to format color codes :(");
+  	return status;
+  }
+
+  outer_border_color_active = color1;
+  inner_border_color_active = color2;
+  outer_border_color_inactive = color3;
+  inner_border_color_inactive = color4;
+  select_box_color = color1;
+  cursor_outline = color1;
+
+  if (&compositor.windows)
+  {
+    struct window *nborders;
+    wl_list_for_each(nborders, &compositor.windows, link)
+    {
+      if (!nborders->swc)
+        continue;
+
+      swc_window_set_border(nborders->swc, inner_border_color_inactive,
+                            inner_border_width, outer_border_color_inactive,
+                            outer_border_width);
+    }
+
+    if (compositor.focused)
+      swc_window_set_border(compositor.focused, inner_border_color_active,
+                            inner_border_width, outer_border_color_active,
+                            outer_border_width);
+
+    apply_decor(compositor.focused, true);
+  }
+
+  reload_nein_cursor();
+
+	snprintf(status.msg, sizeof(status.msg),
+	         "\nChanged all colors to 0x%08x, 0x%08x, 0x%08x, 0x%08x",
+	         color1, color2, color3, color4);
+  return status;
+}
+
+static swc_ipc_status
+control_borders(char **args, void *userdata)
+{
+  swc_ipc_status status = {0};
+
+  if (!args[1])
+  {
+    status.ok = false;
+  	snprintf(status.msg, sizeof(status.msg), "\nSpecify borders.\nActive, inactive, or reset");
   	return status;
   }
 
@@ -440,6 +519,7 @@ control_init(struct wl_event_loop *evloop)
   swc_ipc_register("border", control_borders, NULL);
   swc_ipc_register("cursor", control_cursor, NULL);
   swc_ipc_register("decor", control_decor, NULL);
+  swc_ipc_register("colors", control_colors, NULL);
 
   wl_event_loop_add_fd(
     evloop,
